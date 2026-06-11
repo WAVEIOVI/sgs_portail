@@ -1,0 +1,23 @@
+{
+  "name": "wave-vi-supplier-portal",
+  "version": "1.0.0",
+  "description": "WAVE VI Supplier Portal - SGS Printing Services",
+  "homepage": "https://waveiovi.github.io/sgs_portail",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WAVEIOVI/sgs_portail.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.3",
+    "chart.js": "^4.4.2"
+  },
+  "devDependencies": {
+    "vite": "^5.4.2"
+  }
+}
