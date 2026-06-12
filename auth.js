@@ -4,7 +4,7 @@ const SESSION_KEY = 'wavevi_session';
 
 export const CREDENTIALS = {
   wavevi: {
-    password: 'wavevi',
+    password: 'waveiovi',
     role: 'admin',
     displayName: 'WAVE VI',
     roleLabel: 'Administrator',

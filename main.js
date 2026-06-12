@@ -1135,13 +1135,11 @@ function showProductModal(productId = null) {
                 <div class="col-md-4"><strong>Reference:</strong> ${product.reference}</div>
                 <div class="col-md-4"><strong>Unit:</strong> ${product.unit}</div>
                 <div class="col-md-4"><strong>Category:</strong> ${product.category}</div>
-                <div class="col-md-4"><strong>Price HT:</strong> ${formatCurrency(product.price_ht)}</div>
-                <div class="col-md-4"><strong>Print Support:</strong> ${product.print_support || '-'}</div>
-                <div class="col-md-4"><strong>Print Method:</strong> ${product.print_method || '-'}</div>
-                <div class="col-md-4"><strong>Format:</strong> ${formatProductFormat(product.format)}</div>
-                <div class="col-md-4"><strong>Dimensions:</strong> ${formatProductDimensions(product)}</div>
-                <div class="col-md-4"><strong>Surface:</strong> ${formatSurfaceMm2(product.surface_mm2)}</div>
-              </div>
+                  <div class="col-md-4"><strong>Price HT:</strong> ${formatCurrency(product.price_ht, 3)}</div>
+                  <div class="col-md-4"><strong>Print Support:</strong> ${product.print_support || '-'}</div>
+                  <div class="col-md-4"><strong>Print Method:</strong> ${product.print_method || '-'}</div>
+                  <div class="col-md-4"><strong>Material:</strong> ${product.material || '-'}</div>
+                  <div class="col-md-4"><strong>Finish:</strong> ${product.finish || '-'}</div>
 
               ${product.source_file ? `
                 <h6 class="mb-2">Source Print File</h6>
@@ -1186,7 +1184,7 @@ function showProductModal(productId = null) {
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">Price HT *</label>
-                    <input type="number" step="0.01" class="form-control" id="productPrice" required>
+                    <input type="number" step="0.001" class="form-control" id="productPrice" required>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">Print Support</label>
@@ -1195,6 +1193,9 @@ function showProductModal(productId = null) {
                       <option value="indoor">Indoor</option>
                       <option value="outdoor">Outdoor</option>
                       <option value="indoor-outdoor">Indoor / Outdoor</option>
+                      <option value="vinyl">Vinyl</option>
+                      <option value="paper">Paper</option>
+                      <option value="film">Backlit Film</option>
                     </select>
                   </div>
                   <div class="col-md-6">
@@ -1206,6 +1207,8 @@ function showProductModal(productId = null) {
                       <option value="uv">UV</option>
                       <option value="screen">Screen Print</option>
                       <option value="flexo">Flexography</option>
+                      <option value="sublimation">Sublimation</option>
+                      <option value="letterpress">Letterpress</option>
                     </select>
                   </div>
                   <div class="col-md-6">
@@ -1215,6 +1218,8 @@ function showProductModal(productId = null) {
                       <option value="circle">Circle</option>
                       <option value="square">Square (Carré)</option>
                       <option value="rectangle">Rectangle</option>
+                      <option value="oval">Oval</option>
+                      <option value="custom">Custom</option>
                     </select>
                   </div>
                   <div class="col-md-4" id="dimWidthGroup">
@@ -1228,6 +1233,27 @@ function showProductModal(productId = null) {
                   <div class="col-md-4">
                     <label class="form-label">Surface (mm²)</label>
                     <input type="text" class="form-control" id="productSurface" readonly placeholder="Auto-calculated">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Material</label>
+                    <select class="form-select" id="productMaterial">
+                      <option value="">Select material</option>
+                      <option value="paper">Paper</option>
+                      <option value="vinyl">Vinyl</option>
+                      <option value="polypropylene">Polypropylene</option>
+                      <option value="cardboard">Cardboard</option>
+                      <option value="pvc">PVC</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Finish</label>
+                    <select class="form-select" id="productFinish">
+                      <option value="">Select finish</option>
+                      <option value="gloss">Gloss</option>
+                      <option value="matte">Matte</option>
+                      <option value="varnish">Varnish</option>
+                      <option value="laminate">Lamination</option>
+                    </select>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">Product Image</label>
@@ -1329,6 +1355,8 @@ async function saveProduct() {
     price_ht: parseFloat(document.getElementById('productPrice').value),
     print_support: document.getElementById('productPrintSupport').value,
     print_method: document.getElementById('productPrintMethod').value,
+    material: document.getElementById('productMaterial')?.value || null,
+    finish: document.getElementById('productFinish')?.value || null,
     format,
     dimension_width: dimWidth,
     dimension_height: format === 'rectangle' ? dimHeight : null,
@@ -1366,7 +1394,13 @@ async function saveProduct() {
 }
 
 function formatProductFormat(format) {
-  const labels = { circle: 'Circle', square: 'Square (Carré)', rectangle: 'Rectangle' };
+  const labels = {
+    circle: 'Circle',
+    square: 'Square (Carré)',
+    rectangle: 'Rectangle',
+    oval: 'Oval',
+    custom: 'Custom'
+  };
   return labels[format] || '-';
 }
 
@@ -1377,6 +1411,9 @@ function formatProductDimensions(product) {
   }
   if (product.format === 'circle') {
     return `Ø ${product.dimension_width} mm`;
+  }
+  if (product.format === 'oval') {
+    return `Oval ${product.dimension_width} x ${product.dimension_height || 'N/A'} mm`;
   }
   return `${product.dimension_width} mm`;
 }
@@ -1471,12 +1508,17 @@ function renderPORow(po) {
       </td>
       <td>${formatDate(po.date)}</td>
       <td><span class="status-badge ${po.status}">${formatStatus(po.status)}</span></td>
-      <td>${formatCurrency(po.total_ht)}</td>
+      <td>${formatCurrency(po.total_ht, 3)}</td>
       <td>${po.actual_delivery_date ? formatDate(po.actual_delivery_date) : (po.expected_delivery_date ? formatDate(po.expected_delivery_date) : '-')}</td>
       <td>
         <button class="action-btn" onclick="showPOModal('${po.id}')" title="View">
           <i class="fas fa-eye"></i>
         </button>
+        ${canWrite() ? `
+          <button class="action-btn" onclick="editPO('${po.id}')" title="Edit">
+            <i class="fas fa-pen"></i>
+          </button>
+        ` : ''}
         <button class="action-btn" onclick="printPO('${po.id}')" title="Print">
           <i class="fas fa-print"></i>
         </button>
@@ -1505,13 +1547,15 @@ function filterPOs() {
   }
 }
 
-function showPOModal(poId = null) {
+function showPOModal(poId = null, options = {}) {
   if (!poId && !canWrite()) {
     showToast('You have read-only access.', 'warning');
     return;
   }
 
   const po = poId ? App.data.purchaseOrders.find(p => p.id === poId) : null;
+  const isEditMode = po && options.editMode && canWrite();
+  const showReadOnly = po && !isEditMode;
 
   if (!po && poId) return;
 
@@ -1523,11 +1567,11 @@ function showPOModal(poId = null) {
       <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">${po ? po.po_number : 'New Purchase Order'}</h5>
+            <h5 class="modal-title">${po ? (isEditMode ? `Edit ${po.po_number}` : po.po_number) : 'New Purchase Order'}</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            ${po ? `
+            ${po && !isEditMode ? `
               <!-- Status Timeline -->
               <div class="mb-4">
                 <h6 class="mb-3">Order Status</h6>
@@ -1606,22 +1650,22 @@ function showPOModal(poId = null) {
                       ${getPOFulfillment(po).lines.map(line => `
                         <tr>
                           <td>
-                            <a href="#" class="text-primary fw-medium" onclick="navigateToProductsAndShow('${line.product_id}'); return false;">
+                            <a href="#" class="text-primary fw-medium" onclick="showProductModal('${line.product_id}'); return false;">
                               ${line.product_name}
                             </a>
                           </td>
                           <td>${line.ordered}</td>
                           <td class="text-success fw-medium">${line.received}</td>
                           <td>${line.remaining}</td>
-                          <td>${formatCurrency(line.unit_price_ht)}</td>
-                          <td>${formatCurrency(line.ordered * line.unit_price_ht)}</td>
+                          <td>${formatCurrency(line.unit_price_ht, 3)}</td>
+                          <td>${formatCurrency(line.ordered * line.unit_price_ht, 3)}</td>
                         </tr>
                       `).join('')}
                     </tbody>
                     <tfoot>
                       <tr>
                         <td colspan="5" class="text-end fw-bold">Total HT</td>
-                        <td class="fw-bold">${formatCurrency(po.total_ht)}</td>
+                        <td class="fw-bold">${formatCurrency(po.total_ht, 3)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -1684,29 +1728,40 @@ function showPOModal(poId = null) {
                 <div class="row g-3">
                   <div class="col-md-6">
                     <label class="form-label">PO Number *</label>
-                    <input type="text" class="form-control" id="poNumber" value="${peekNextPONumber()}" readonly required>
+                    <input type="text" class="form-control" id="poNumber" value="${po ? po.po_number : peekNextPONumber()}" readonly required>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">Order Date *</label>
-                    <input type="date" class="form-control" id="poDate" value="${new Date().toISOString().split('T')[0]}" required>
+                    <input type="date" class="form-control" id="poDate" value="${po ? po.date : new Date().toISOString().split('T')[0]}" required>
                   </div>
+                  ${po ? `<input type="hidden" id="poId" value="${po.id}">` : ''}
                   <div class="col-md-6">
                     <label class="form-label">Supplier Reference</label>
-                    <input type="text" class="form-control" id="poRef">
+                    <input type="text" class="form-control" id="poRef" value="${po?.supplier_reference || ''}">
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">Expected Delivery Date</label>
-                    <input type="date" class="form-control" id="poDeliveryDate">
+                    <input type="date" class="form-control" id="poDeliveryDate" value="${po?.expected_delivery_date || ''}">
                   </div>
                   <div class="col-12">
                     <label class="form-label">Notes</label>
-                    <textarea class="form-control" id="poNotes" rows="2"></textarea>
+                    <textarea class="form-control" id="poNotes" rows="2">${po?.notes || ''}</textarea>
                   </div>
                 </div>
 
                 <h6 class="mt-4 mb-3">Order Lines</h6>
                 <div id="poLines">
-                  ${renderPOLine(null, 0)}
+                  ${po?.lines?.length ? po.lines.map((line, idx) => renderPOLine(line, idx)).join('') : renderPOLine(null, 0)}
+                </div>
+                <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
+                  <div>
+                    <div class="text-muted small">Total Surface</div>
+                    <div id="poLinesSurfaceTotal" class="fw-semibold">${po ? formatSurfaceMm2(calculatePOTotalSurface(po)) : '-'} </div>
+                  </div>
+                  <div>
+                    <div class="text-muted small">Total Commande HT</div>
+                    <div id="poLinesHTTotal" class="fw-semibold">${po ? formatCurrency(po.total_ht, 3) : formatCurrency(0, 3)}</div>
+                  </div>
                 </div>
                 <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addPOLine()">
                   <i class="fas fa-plus me-1"></i>Add Line
@@ -1716,11 +1771,14 @@ function showPOModal(poId = null) {
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-            ${po ? `
+            ${showReadOnly ? `
               <button type="button" class="btn btn-outline-primary" onclick="printPO('${po.id}')">
                 <i class="fas fa-print me-1"></i>Print PO
               </button>
               ${canWrite() ? `
+                <button type="button" class="btn btn-outline-secondary" onclick="showPOModal('${po.id}', { editMode: true })">
+                  <i class="fas fa-pen me-1"></i>Edit PO
+                </button>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                   <select class="form-select form-select-sm" id="poStatusSelect" style="width: auto;">
                     ${['draft', 'pending', 'approved', 'in-production', 'completed', 'completed-partial', 'cancelled'].map(s =>
@@ -1742,7 +1800,7 @@ function showPOModal(poId = null) {
               ` : ''}
             ` : `
               <button type="button" class="btn btn-primary" onclick="savePO()">
-                <i class="fas fa-save me-1"></i>Create PO
+                <i class="fas fa-save me-1"></i>${po ? 'Update PO' : 'Create PO'}
               </button>
             `}
           </div>
@@ -1754,10 +1812,11 @@ function showPOModal(poId = null) {
   document.getElementById('poModal')?.remove();
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-  if (!po) poLineIndex = 1;
+  poLineIndex = po && isEditMode ? (po.lines?.length || 0) : 1;
 
   const modal = new bootstrap.Modal(document.getElementById('poModal'));
   modal.show();
+  updatePOTotals();
 
   document.getElementById('poModal').addEventListener('hidden.bs.modal', function() {
     this.remove();
@@ -1770,11 +1829,8 @@ function showPOModal(poId = null) {
   window.removePOLine = removePOLine;
   window.printPO = printPO;
   window.updatePOStatus = updatePOStatus;
-  window.navigateToProductsAndShow = (productId) => {
-    bootstrap.Modal.getInstance(document.getElementById('poModal')).hide();
-    navigateTo('products');
-    setTimeout(() => showProductModal(productId), 200);
-  };
+  window.editPO = (poId) => showPOModal(poId, { editMode: true });
+  window.navigateToProductsAndShow = showProductModal;
   window.closePOPartial = closePOPartial;
   window.navigateToDeliveriesAndShow = (deliveryId) => {
     bootstrap.Modal.getInstance(document.getElementById('poModal')).hide();
@@ -1784,6 +1840,13 @@ function showPOModal(poId = null) {
 }
 
 function renderPOLine(line, index) {
+  const selectedProductId = line?.product_id || '';
+  const selectedProduct = App.data.products.find(p => p.id === selectedProductId);
+  const qtyValue = line?.quantity || 1;
+  const unitPriceValue = line?.unit_price_ht != null ? line.unit_price_ht.toFixed(3) : (selectedProduct?.price_ht || '').toString();
+  const surfaceValue = line?.surface_mm2 != null ? formatSurfaceMm2(line.surface_mm2) : '';
+  const totalValue = line ? (line.line_total_ht || (line.quantity * line.unit_price_ht)).toFixed(3) : '';
+
   return `
     <div class="row g-2 mb-2 align-items-end po-line" data-index="${index}">
       <div class="col-md-4">
@@ -1791,28 +1854,32 @@ function renderPOLine(line, index) {
         <div class="input-group">
           <select class="form-select" id="poProduct${index}" onchange="updatePOLineTotal(${index})" required>
             <option value="">Select Product</option>
-            ${App.data.products.map(p => `<option value="${p.id}" data-price="${p.price_ht}" data-surface="${p.surface_mm2 || 0}">${p.name} (${p.reference})</option>`).join('')}
+            ${App.data.products.map(p => `
+              <option value="${p.id}" data-price="${p.price_ht}" data-surface="${p.surface_mm2 || 0}" ${p.id === selectedProductId ? 'selected' : ''}>
+                ${p.name} (${p.reference})
+              </option>
+            `).join('')}
           </select>
-          <button type="button" class="btn btn-outline-secondary" id="poViewProduct${index}" onclick="viewPOLineProduct(${index})" title="View product" disabled>
+          <button type="button" class="btn btn-outline-secondary" id="poViewProduct${index}" onclick="viewPOLineProduct(${index})" title="View product" ${selectedProductId ? '' : 'disabled'}>
             <i class="fas fa-eye"></i>
           </button>
         </div>
       </div>
       <div class="col-md-1">
         <label class="form-label small mb-1">Qty</label>
-        <input type="number" class="form-control" id="poQty${index}" placeholder="Qty" min="1" value="1" oninput="updatePOLineTotal(${index})" required>
+        <input type="number" class="form-control" id="poQty${index}" placeholder="Qty" min="1" value="${qtyValue}" oninput="updatePOLineTotal(${index})" required>
       </div>
       <div class="col-md-2">
         <label class="form-label small mb-1">Surface</label>
-        <input type="text" class="form-control" id="poSurface${index}" placeholder="mm²" readonly>
+        <input type="text" class="form-control" id="poSurface${index}" placeholder="mm²" readonly value="${surfaceValue}">
       </div>
       <div class="col-md-2">
         <label class="form-label small mb-1">Unit Price</label>
-        <input type="number" step="0.01" class="form-control" id="poUnitPrice${index}" placeholder="Price" readonly>
+        <input type="text" class="form-control" id="poUnitPrice${index}" placeholder="Price" readonly value="${unitPriceValue}">
       </div>
       <div class="col-md-2">
         <label class="form-label small mb-1">Total HT</label>
-        <input type="number" step="0.01" class="form-control" id="poLineTotal${index}" placeholder="Total" readonly>
+        <input type="text" class="form-control" id="poLineTotal${index}" placeholder="Total" readonly value="${totalValue}">
       </div>
       <div class="col-md-1">
         <label class="form-label small mb-1">&nbsp;</label>
@@ -1830,6 +1897,7 @@ function addPOLine() {
   const container = document.getElementById('poLines');
   container.insertAdjacentHTML('beforeend', renderPOLine(null, poLineIndex));
   poLineIndex++;
+  updatePOTotals();
 }
 
 function updatePOLineTotal(index) {
@@ -1840,32 +1908,84 @@ function updatePOLineTotal(index) {
   const totalInput = document.getElementById(`poLineTotal${index}`);
   const viewBtn = document.getElementById(`poViewProduct${index}`);
 
-  if (productSelect.value) {
+  if (productSelect && productSelect.value) {
     const option = productSelect.options[productSelect.selectedIndex];
     const price = parseFloat(option.dataset.price) || 0;
     const surface = parseFloat(option.dataset.surface) || 0;
     const qty = parseInt(qtyInput.value) || 0;
 
-    priceInput.value = price.toFixed(2);
+    priceInput.value = price.toFixed(3);
     surfaceInput.value = surface > 0 ? formatSurfaceMm2(surface) : '-';
-    totalInput.value = (price * qty).toFixed(2);
+    totalInput.value = (price * qty).toFixed(3);
     if (viewBtn) viewBtn.disabled = false;
   } else {
-    priceInput.value = '';
-    surfaceInput.value = '';
-    totalInput.value = '';
+    if (priceInput) priceInput.value = '';
+    if (surfaceInput) surfaceInput.value = '';
+    if (totalInput) totalInput.value = '';
     if (viewBtn) viewBtn.disabled = true;
   }
+  updatePOTotals();
 }
 
 function viewPOLineProduct(index) {
   const productId = document.getElementById(`poProduct${index}`)?.value;
-  if (productId) navigateToProductsAndShow(productId);
+  if (productId) {
+    const poModal = bootstrap.Modal.getInstance(document.getElementById('poModal'));
+    if (poModal) poModal.hide();
+    showProductModal(productId);
+  }
+}
+
+function calculatePOTotalSurface(po) {
+  return (po.lines || []).reduce((sum, line) => {
+    const surface = parseFloat(line.surface_mm2) || 0;
+    const qty = parseInt(line.quantity) || 0;
+    return sum + surface * qty;
+  }, 0);
+}
+
+function getPOFormSurfaceTotal() {
+  const lineElements = document.querySelectorAll('.po-line');
+  let totalSurface = 0;
+  lineElements.forEach(el => {
+    const productSelect = document.getElementById(`poProduct${el.dataset.index}`);
+    const qtyInput = document.getElementById(`poQty${el.dataset.index}`);
+    const surfaceInput = document.getElementById(`poSurface${el.dataset.index}`);
+    const qty = parseInt(qtyInput?.value) || 0;
+    const surface = productSelect?.value ? parseFloat(productSelect.options[productSelect.selectedIndex].dataset.surface) || 0 : 0;
+    totalSurface += surface * qty;
+  });
+  return totalSurface;
+}
+
+function getPOFormHTTotal() {
+  const lineElements = document.querySelectorAll('.po-line');
+  let total = 0;
+  lineElements.forEach(el => {
+    const totalInput = document.getElementById(`poLineTotal${el.dataset.index}`);
+    const amount = parseFloat(totalInput?.value) || 0;
+    total += amount;
+  });
+  return total;
+}
+
+function updatePOTotals() {
+  const surfaceEl = document.getElementById('poLinesSurfaceTotal');
+  const htEl = document.getElementById('poLinesHTTotal');
+  if (surfaceEl) {
+    surfaceEl.textContent = formatSurfaceMm2(getPOFormSurfaceTotal());
+  }
+  if (htEl) {
+    htEl.textContent = formatCurrency(getPOFormHTTotal(), 3);
+  }
 }
 
 function removePOLine(index) {
   const line = document.querySelector(`.po-line[data-index="${index}"]`);
-  if (line) line.remove();
+  if (line) {
+    line.remove();
+    updatePOTotals();
+  }
 }
 
 async function savePO() {
@@ -1900,9 +2020,28 @@ async function savePO() {
     return;
   }
 
+  const poId = document.getElementById('poId')?.value;
+  const existingPO = poId ? App.data.purchaseOrders.find(p => p.id === poId) : null;
   const totalHT = lines.reduce((sum, l) => sum + l.line_total_ht, 0);
 
-  const po = {
+  const po = existingPO ? {
+    ...existingPO,
+    date: document.getElementById('poDate').value,
+    supplier_reference: document.getElementById('poRef').value,
+    expected_delivery_date: document.getElementById('poDeliveryDate').value,
+    actual_delivery_date: existingPO.actual_delivery_date,
+    lines: lines.map(line => ({
+      ...line,
+      received_qty: Math.min(
+        existingPO.lines.find(l => l.product_id === line.product_id)?.received_qty || 0,
+        line.quantity
+      )
+    })),
+    total_ht: totalHT,
+    total_ttc: totalHT,
+    notes: document.getElementById('poNotes').value,
+    updated_at: new Date().toISOString()
+  } : {
     id: getNextId('PO', 'purchaseOrder'),
     po_number: getNextPONumber(),
     date: document.getElementById('poDate').value,
@@ -1919,11 +2058,16 @@ async function savePO() {
   };
 
   await savePurchaseOrder(po);
-  App.data.purchaseOrders.push(po);
+  if (existingPO) {
+    const index = App.data.purchaseOrders.findIndex(p => p.id === existingPO.id);
+    if (index !== -1) App.data.purchaseOrders[index] = po;
+  } else {
+    App.data.purchaseOrders.push(po);
+  }
 
   bootstrap.Modal.getInstance(document.getElementById('poModal')).hide();
   renderPage('purchase-orders');
-  showToast('Purchase Order created successfully', 'success');
+  showToast(existingPO ? 'Purchase Order updated successfully' : 'Purchase Order created successfully', 'success');
 }
 
 function printPO(poId) {
@@ -1951,6 +2095,7 @@ function printPO(poId) {
     <body>
       <div class="header">
         <div>
+          <img src="/logo-wave-vi.png" alt="WAVE VI" style="width: 90px; height: auto; margin-bottom: 12px; display: block;" />
           <div class="company-name">${App.data.settings.companyName}</div>
           <div>Supplier: SGS Printing Services</div>
         </div>
@@ -1983,8 +2128,7 @@ function printPO(poId) {
       </table>
 
       <div class="totals">
-        <p class="total-row">Total HT: ${formatCurrency(po.total_ht)}</p>
-      </div>
+        <p class="total-row">Total HT: ${formatCurrency(po.total_ht, 3)}</p>
 
       ${po.notes ? `<p style="margin-top: 30px;"><strong>Notes:</strong> ${po.notes}</p>` : ''}
     </body>
@@ -3060,15 +3204,16 @@ function renderStatusTimeline(currentStatus) {
   }).join('');
 }
 
-function formatCurrency(amount) {
+function formatCurrency(amount, minimumFractionDigits = 2) {
   const settings = App.data.settings || {};
   const currency = settings.currency || 'TND';
   const locale = currency === 'TND' ? 'fr-TN' : currency === 'EUR' ? 'fr-FR' : 'en-US';
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
-    minimumFractionDigits: 2
-  }).format(amount);
+    minimumFractionDigits,
+    maximumFractionDigits: minimumFractionDigits
+  }).format(amount || 0);
 }
 
 function calculateSurfaceMm2(format, width, height) {
