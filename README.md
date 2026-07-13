@@ -2,6 +2,8 @@
 
 This project is a supplier portal for WAVE VI × SGS Printing Services.
 
+Data is served from static JSON files in `public/data/` (no backend, database, or IndexedDB).
+
 ## Local development
 
 Install dependencies and start the Vite dev server:
@@ -16,6 +18,15 @@ npm run dev
 ```bash
 npm run build
 ```
+
+## Updating portal data (admin)
+
+1. Edit data in the portal while signed in as admin, or edit `public/data/*.json` directly.
+2. If editing in the portal, use **Settings → Publish Data → Download JSON Files**.
+3. Replace files in `public/data/` and commit to `main`.
+4. GitHub Actions redeploys; all users receive updated data automatically.
+
+See [DATA-MIGRATION.md](./DATA-MIGRATION.md) for JSON schemas and IndexedDB migration steps.
 
 ## GitHub Pages deployment
 

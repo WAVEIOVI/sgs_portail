@@ -10,13 +10,12 @@ import {
   saveSettings as dbSaveSettings,
   exportData,
   importData,
-  clearAll,
-  clearCounters,
   getNextId,
   getNextPONumber,
   peekNextPONumber,
-  downloadJSON
-} from './db.js';
+  downloadJSON,
+  downloadAllDataFiles
+} from './dataService.js';
 import {
   login,
   logout,
@@ -353,7 +352,7 @@ function updateDeliveryPreviewAmount(deliveryId) {
   return total;
 }
 
-// Load All Data from IndexedDB
+// Load all data from hosted JSON files
 async function loadAllData() {
   try {
     const data = await loadPortalData();
@@ -366,7 +365,6 @@ async function loadAllData() {
     App.data.settings = data.settings;
     if (App.data.settings.currency === 'MAD') {
       App.data.settings.currency = 'TND';
-      await dbSaveSettings(App.data.settings);
     }
     App.theme = data.settings.theme || 'light';
     migratePOFulfillment();
@@ -3014,37 +3012,47 @@ function renderSettings(container) {
         </div>
       </div>
 
-      <!-- Backup & Restore -->
+      <!-- Data publishing -->
       <div class="col-md-6">
         <div class="card">
           <div class="card-header">
-            <h6 class="mb-0"><i class="fas fa-database me-2"></i>Backup & Restore</h6>
+            <h6 class="mb-0"><i class="fas fa-file-code me-2"></i>Publish Data (Admin)</h6>
           </div>
           <div class="card-body">
-            <p class="text-muted small">Export all portal data as JSON, or import a previous backup.</p>
+            <p class="text-muted small">
+              Changes made in the portal are kept in memory for this session only.
+              Download JSON files and commit them to <code>public/data/</code> to publish updates on GitHub Pages.
+            </p>
             <div class="d-flex flex-wrap gap-2">
-              <button type="button" class="btn btn-outline-primary" onclick="exportBackup()">
-                <i class="fas fa-download me-1"></i>Export Backup
+              <button type="button" class="btn btn-outline-primary" onclick="exportDataFiles()">
+                <i class="fas fa-download me-1"></i>Download JSON Files
+              </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="exportBackup()">
+                <i class="fas fa-file-archive me-1"></i>Combined Backup
               </button>
               <label class="btn btn-outline-secondary mb-0">
-                <i class="fas fa-upload me-1"></i>Import Backup
+                <i class="fas fa-upload me-1"></i>Import to Session
                 <input type="file" accept=".json,application/json" class="d-none" id="importBackupInput" onchange="importBackup(event)">
               </label>
             </div>
+            <p class="text-muted small mt-3 mb-0">
+              Migrating from IndexedDB?
+              <a href="./admin-export.html" target="_blank" rel="noopener">Open the export utility</a>.
+            </p>
           </div>
         </div>
       </div>
 
-      <!-- Reset Data -->
+      <!-- Reload -->
       <div class="col-md-6">
-        <div class="card border-danger">
-          <div class="card-header bg-danger-light">
-            <h6 class="mb-0 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Danger Zone</h6>
+        <div class="card">
+          <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-arrows-rotate me-2"></i>Reload Hosted Data</h6>
           </div>
           <div class="card-body">
-            <p class="text-muted small">Clear all stored data and start fresh. This action cannot be undone.</p>
-            <button class="btn btn-outline-danger" onclick="resetLocalData()">
-              <i class="fas fa-trash me-1"></i>Reset All Data
+            <p class="text-muted small">Discard in-memory edits and reload the JSON files served from the repository.</p>
+            <button class="btn btn-outline-secondary" onclick="reloadHostedData()">
+              <i class="fas fa-sync me-1"></i>Reload from JSON
             </button>
           </div>
         </div>
@@ -3053,9 +3061,10 @@ function renderSettings(container) {
   `;
 
   window.saveSettings = saveSettings;
-  window.resetLocalData = resetLocalData;
   window.exportBackup = exportBackup;
+  window.exportDataFiles = exportDataFilesHandler;
   window.importBackup = importBackup;
+  window.reloadHostedData = reloadHostedData;
 }
 
 async function saveSettings() {
@@ -3073,12 +3082,22 @@ async function saveSettings() {
   showToast('Settings saved successfully', 'success');
 }
 
+function exportDataFilesHandler() {
+  try {
+    downloadAllDataFiles();
+    showToast('JSON files downloaded — commit them to public/data/', 'success');
+  } catch (error) {
+    console.error('Export failed:', error);
+    showToast('Failed to export JSON files', 'danger');
+  }
+}
+
 async function exportBackup() {
   try {
-    const data = await exportData();
+    const data = exportData();
     const date = new Date().toISOString().split('T')[0];
     downloadJSON(data, `wave-vi-backup-${date}.json`);
-    showToast('Backup exported successfully', 'success');
+    showToast('Combined backup exported successfully', 'success');
   } catch (error) {
     console.error('Export failed:', error);
     showToast('Failed to export backup', 'danger');
@@ -3091,13 +3110,19 @@ async function importBackup(event) {
 
   try {
     const text = await file.text();
-    if (!confirm('Importing will replace all current data. Continue?')) {
+    if (!confirm('Importing will replace in-memory data for this session. Continue?')) {
       event.target.value = '';
       return;
     }
 
-    await importData(text);
-    await loadAllData();
+    const data = importData(text);
+    App.data.products = data.products;
+    App.data.purchaseOrders = data.purchaseOrders;
+    App.data.deliveries = data.deliveries;
+    App.data.payments = data.payments;
+    App.data.documents = data.documents;
+    App.data.categories = data.categories;
+    App.data.settings = data.settings;
     initializeTheme();
     renderPage(App.currentPage);
     showToast('Backup imported successfully', 'success');
@@ -3109,13 +3134,13 @@ async function importBackup(event) {
   event.target.value = '';
 }
 
-async function resetLocalData() {
-  if (confirm('Are you sure you want to reset all stored data? This cannot be undone.')) {
-    await clearAll();
-    clearCounters();
-    showToast('Data reset. Reloading...', 'success');
-    setTimeout(() => location.reload(), 1000);
-  }
+async function reloadHostedData() {
+  if (!confirm('Reload data from hosted JSON files? Unsaved session changes will be lost.')) return;
+  showToast('Reloading data...', 'info');
+  await loadAllData();
+  initializeTheme();
+  renderPage(App.currentPage);
+  showToast('Data reloaded from JSON files', 'success');
 }
 
 function updateSupplierDisplay() {

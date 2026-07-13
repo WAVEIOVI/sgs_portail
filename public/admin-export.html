@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGS Portail — IndexedDB Export Utility</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; background: #f4f6f9; }
+    .card { border: none; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    pre { max-height: 240px; overflow: auto; font-size: 12px; }
+  </style>
+</head>
+<body class="py-5">
+  <div class="container" style="max-width: 720px;">
+    <div class="card">
+      <div class="card-body p-4">
+        <h1 class="h4 mb-2">IndexedDB → JSON Export</h1>
+        <p class="text-muted">
+          One-time migration utility. Reads data from the legacy <code>wave-vi-portal</code> IndexedDB
+          database and downloads JSON files for the <code>public/data/</code> folder.
+        </p>
+
+        <div id="status" class="alert alert-secondary py-2 small">Checking for IndexedDB data…</div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button type="button" class="btn btn-primary" id="exportAllBtn" disabled>
+            Download all JSON files
+          </button>
+          <button type="button" class="btn btn-outline-primary" id="exportCombinedBtn" disabled>
+            Download combined backup
+          </button>
+          <a class="btn btn-outline-secondary" href="./index.html">Back to portal</a>
+        </div>
+
+        <h2 class="h6">Individual files</h2>
+        <div class="list-group mb-4" id="fileList"></div>
+
+        <h2 class="h6">Preview</h2>
+        <pre id="preview" class="bg-light border rounded p-3 mb-0">No data loaded.</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DB_NAME = 'wave-vi-portal';
+    const DEFAULT_SETTINGS = {
+      companyName: 'WAVE VI',
+      supplierName: 'SGS Printing Services',
+      currency: 'TND',
+      defaultVat: 0,
+      theme: 'light',
+      categories: ['Tickets', 'Flyers', 'Posters', 'Brochures', 'Badges', 'Labels', 'Packaging', 'Signage', 'Other']
+    };
+
+    let exportPayload = null;
+
+    function downloadJSON(data, filename) {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+    }
+
+    function getAll(db, storeName) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function getMeta(db, key) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('meta', 'readonly');
+        const store = tx.objectStore('meta');
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result?.value ?? null);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function loadFromIndexedDB() {
+      const db = await openDB();
+      const [products, purchaseOrders, deliveries, payments, documents, settings, categories] =
+        await Promise.all([
+          getAll(db, 'products'),
+          getAll(db, 'purchaseOrders'),
+          getAll(db, 'deliveries'),
+          getAll(db, 'payments'),
+          getAll(db, 'documents'),
+          getMeta(db, 'settings'),
+          getMeta(db, 'categories')
+        ]);
+      db.close();
+
+      const mergedSettings = {
+        ...DEFAULT_SETTINGS,
+        ...(settings || {}),
+        categories: categories?.length ? categories : DEFAULT_SETTINGS.categories
+      };
+
+      return {
+        combined: {
+          version: 2,
+          exportedAt: new Date().toISOString(),
+          products,
+          purchase_orders: purchaseOrders,
+          deliveries,
+          payments,
+          documents,
+          settings: mergedSettings,
+          categories: mergedSettings.categories
+        },
+        files: {
+          'products.json': products,
+          'purchase-orders.json': purchaseOrders,
+          'deliveries.json': deliveries,
+          'payments.json': payments,
+          'documents.json': documents,
+          'settings.json': mergedSettings
+        }
+      };
+    }
+
+    function setStatus(message, type = 'secondary') {
+      const el = document.getElementById('status');
+      el.className = `alert alert-${type} py-2 small`;
+      el.textContent = message;
+    }
+
+    function renderFileList(files) {
+      const list = document.getElementById('fileList');
+      list.innerHTML = Object.entries(files).map(([name, data]) => {
+        const count = Array.isArray(data) ? data.length : Object.keys(data).length;
+        const label = Array.isArray(data) ? `${count} record(s)` : 'object';
+        return `
+          <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center file-download" data-file="${name}">
+            <span><code>${name}</code></span>
+            <span class="badge bg-primary rounded-pill">${label}</span>
+          </button>
+        `;
+      }).join('');
+
+      list.querySelectorAll('.file-download').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          downloadJSON(files[btn.dataset.file], btn.dataset.file);
+        });
+      });
+    }
+
+    async function init() {
+      if (!('indexedDB' in window)) {
+        setStatus('IndexedDB is not available in this browser.', 'warning');
+        return;
+      }
+
+      try {
+        exportPayload = await loadFromIndexedDB();
+        const totalRecords =
+          exportPayload.files['products.json'].length +
+          exportPayload.files['purchase-orders.json'].length +
+          exportPayload.files['deliveries.json'].length +
+          exportPayload.files['payments.json'].length +
+          exportPayload.files['documents.json'].length;
+
+        if (totalRecords === 0) {
+          setStatus('No records found in IndexedDB. Open the main portal first if you have not migrated yet, or edit public/data/*.json directly.', 'warning');
+        } else {
+          setStatus(`Found ${totalRecords} record(s) in IndexedDB. Download the files and commit them to public/data/.`, 'success');
+        }
+
+        document.getElementById('exportAllBtn').disabled = false;
+        document.getElementById('exportCombinedBtn').disabled = false;
+        renderFileList(exportPayload.files);
+        document.getElementById('preview').textContent = JSON.stringify(exportPayload.combined, null, 2).slice(0, 4000);
+
+        document.getElementById('exportAllBtn').addEventListener('click', () => {
+          for (const [name, data] of Object.entries(exportPayload.files)) {
+            downloadJSON(data, name);
+          }
+        });
+
+        document.getElementById('exportCombinedBtn').addEventListener('click', () => {
+          const date = new Date().toISOString().split('T')[0];
+          downloadJSON(exportPayload.combined, `wave-vi-backup-${date}.json`);
+        });
+      } catch (error) {
+        console.error(error);
+        setStatus(`Could not read IndexedDB: ${error.message}. The database may not exist yet.`, 'danger');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
