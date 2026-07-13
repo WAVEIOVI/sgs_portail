@@ -1,0 +1,18 @@
+{
+  "companyName": "WAVE VI",
+  "supplierName": "SGS Printing Services",
+  "currency": "TND",
+  "defaultVat": 0,
+  "theme": "light",
+  "categories": [
+    "Tickets",
+    "Flyers",
+    "Posters",
+    "Brochures",
+    "Badges",
+    "Labels",
+    "Packaging",
+    "Signage",
+    "Other"
+  ]
+}

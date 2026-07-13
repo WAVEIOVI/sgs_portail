@@ -1,4 +1,4 @@
-(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const i of document.querySelectorAll('link[rel="modulepreload"]'))s(i);new MutationObserver(i=>{for(const n of i)if(n.type==="childList")for(const o of n.addedNodes)o.tagName==="LINK"&&o.rel==="modulepreload"&&s(o)}).observe(document,{childList:!0,subtree:!0});function a(i){const n={};return i.integrity&&(n.integrity=i.integrity),i.referrerPolicy&&(n.referrerPolicy=i.referrerPolicy),i.crossOrigin==="use-credentials"?n.credentials="include":i.crossOrigin==="anonymous"?n.credentials="omit":n.credentials="same-origin",n}function s(i){if(i.ep)return;i.ep=!0;const n=a(i);fetch(i.href,n)}})();const De="wave-vi-portal",Oe=1,re=["products","purchaseOrders","deliveries","payments","documents","meta"],W={companyName:"WAVE VI",supplierName:"SGS Printing Services",currency:"TND",defaultVat:0,theme:"light"},ce=["Tickets","Flyers","Posters","Brochures","Badges","Labels","Packaging","Signage","Other"];let U=null;function ke(){return U||(U=new Promise((e,t)=>{const a=indexedDB.open(De,Oe);a.onerror=()=>t(a.error),a.onsuccess=()=>e(a.result),a.onupgradeneeded=s=>{const i=s.target.result;for(const n of re)i.objectStoreNames.contains(n)||i.createObjectStore(n,{keyPath:n==="meta"?"key":"id"})}})),U}async function B(e,t,a){const s=await ke();return new Promise((i,n)=>{const o=s.transaction(e,t),d=o.objectStore(e),r=a(d);o.oncomplete=()=>i(r),o.onerror=()=>n(o.error)})}async function I(e){return B(e,"readonly",t=>new Promise((a,s)=>{const i=t.getAll();i.onsuccess=()=>a(i.result),i.onerror=()=>s(i.error)}))}async function x(e,t){return B(e,"readwrite",a=>a.put(t))}async function E(e,t){return B(e,"readwrite",a=>{for(const s of t)a.put(s)})}async function Be(e){return B(e,"readwrite",t=>t.clear())}async function ue(e){return B("meta","readonly",t=>new Promise((a,s)=>{const i=t.get(e);i.onsuccess=()=>{var n;return a(((n=i.result)==null?void 0:n.value)??null)},i.onerror=()=>s(i.error)}))}async function me(e,t){return x("meta",{key:e,value:t})}async function Le(){const e=await ue("settings");return e?{...W,...e}:{...W}}async function M(e){await me("settings",e)}async function Te(){const e=await ue("categories");return e!=null&&e.length?e:[...ce]}async function Ce(e){await me("categories",e)}async function pe(){const[e,t,a,s,i,n,o]=await Promise.all([I("products"),I("purchaseOrders"),I("deliveries"),I("payments"),I("documents"),Le(),Te()]);return{products:e,purchaseOrders:t,deliveries:a,payments:s,documents:i,settings:n,categories:o}}async function Me(e){await x("products",e)}async function A(e){await x("purchaseOrders",e)}async function O(e){await x("deliveries",e)}async function ve(e){await x("payments",e)}async function Ae(e){await x("documents",e)}async function Re(){const e=await pe();return{version:1,exportedAt:new Date().toISOString(),products:e.products,purchase_orders:e.purchaseOrders,deliveries:e.deliveries,payments:e.payments,documents:e.documents,settings:e.settings,categories:e.categories}}async function Fe(e){const t=typeof e=="string"?JSON.parse(e):e;await fe(),await Promise.all([E("products",t.products||[]),E("purchaseOrders",t.purchase_orders||t.purchaseOrders||[]),E("deliveries",t.deliveries||[]),E("payments",t.payments||[]),E("documents",t.documents||[]),M({...W,...t.settings||{}}),Ce(t.categories||ce)]),He(t),je(t.purchase_orders||t.purchaseOrders||[])}async function fe(){await Promise.all(re.map(Be))}function k(e,t){const a=`counter_${t}`,s=parseInt(localStorage.getItem(a)||"0",10)+1;return localStorage.setItem(a,String(s)),`${e}-${String(s).padStart(3,"0")}`}function Ne(){const t=parseInt(localStorage.getItem("counter_poNumber")||"0",10)+1;return`PO-SGS-${String(t).padStart(3,"0")}`}function qe(){const e="counter_poNumber",t=parseInt(localStorage.getItem(e)||"0",10)+1;return localStorage.setItem(e,String(t)),`PO-SGS-${String(t).padStart(3,"0")}`}function je(e){if(!(e!=null&&e.length))return;const t=e.reduce((a,s)=>{const i=(s.po_number||"").match(/^PO-SGS-(\d+)$/);return i?Math.max(a,parseInt(i[1],10)):a},0);t>0&&localStorage.setItem("counter_poNumber",String(t))}function He(e){const t={product:D(e.products,"PRD-"),purchaseOrder:D(e.purchase_orders||e.purchaseOrders,"PO-"),delivery:D(e.deliveries,"DEL-"),payment:D(e.payments,"PAY-"),document:D(e.documents,"DOC-")};for(const[a,s]of Object.entries(t))localStorage.setItem(`counter_${a}`,String(s))}function D(e,t){return e!=null&&e.length?e.reduce((a,s)=>{const i=s.id||"";if(!i.startsWith(t))return a;const n=parseInt(i.slice(t.length),10);return Number.isNaN(n)?a:Math.max(a,n)},0):0}function Ue(){for(const e of Object.keys(localStorage))e.startsWith("counter_")&&localStorage.removeItem(e)}function Ve(e,t){const a=new Blob([JSON.stringify(e,null,2)],{type:"application/json"}),s=document.createElement("a");s.href=URL.createObjectURL(a),s.download=t,s.click(),URL.revokeObjectURL(s.href)}const J="wavevi_session",Ge={wavevi:{password:"waveiovi",role:"admin",displayName:"WAVE VI",roleLabel:"Administrator",initials:"WV"},sgs:{password:"sgs",role:"supplier",displayName:"SGS Printing Services",roleLabel:"Supplier",initials:"SG"}};function We(e,t){const a=Ge[e.trim().toLowerCase()];if(!a||a.password!==t)return null;const s={username:e.trim().toLowerCase(),role:a.role,displayName:a.displayName,roleLabel:a.roleLabel,initials:a.initials,loggedInAt:new Date().toISOString()};return sessionStorage.setItem(J,JSON.stringify(s)),s}function ze(){sessionStorage.removeItem(J)}function K(){try{const e=sessionStorage.getItem(J);return e?JSON.parse(e):null}catch{return null}}function Qe(){return!!K()}function R(){var e;return((e=K())==null?void 0:e.role)==="admin"}function g(){return R()}function ye(e){return!(e==="settings"&&!R())}const l={data:{products:[],purchaseOrders:[],deliveries:[],payments:[],documents:[],categories:[],settings:{}},currentPage:"dashboard",charts:{},theme:"light"};document.addEventListener("DOMContentLoaded",()=>{Ye()});function Ye(){var t;const e=document.getElementById("loginForm");e==null||e.addEventListener("submit",a=>{a.preventDefault();const s=document.getElementById("loginUser").value,i=document.getElementById("loginPass").value,n=document.getElementById("loginError");if(!We(s,i)){n.textContent="Invalid username or password.",n.classList.remove("d-none");return}n.classList.add("d-none"),ne()}),(t=document.getElementById("logoutBtn"))==null||t.addEventListener("click",()=>{confirm("Sign out?")&&(ze(),location.reload())}),Qe()&&ne()}async function ne(){var t,a;(t=document.getElementById("loginScreen"))==null||t.classList.add("d-none"),(a=document.getElementById("appShell"))==null||a.classList.remove("d-none"),Je(),await te(),he(),et(),at(),tt(),st(),ge(l.currentPage);const e=window.location.hash.slice(1)||"dashboard";_(ye(e)?e:"dashboard")}function Je(){const e=K();e&&(document.getElementById("profileName").textContent=e.displayName,document.getElementById("profileRole").textContent=e.roleLabel,document.getElementById("profileInitials").textContent=e.initials,document.getElementById("sidebarUserName").textContent=e.displayName,document.getElementById("sidebarUserRole").textContent=e.roleLabel,document.querySelectorAll(".admin-only").forEach(t=>{t.classList.toggle("hidden-role",!R())}))}function L(){return g()?"":'<div class="readonly-banner"><i class="fa-solid fa-eye"></i> Read-only access — contact WAVE VI admin to make changes.</div>'}const oe={dashboard:{icon:"fa-gauge-high",label:"Dashboard"},products:{icon:"fa-box-open",label:"Product Catalog"},"purchase-orders":{icon:"fa-file-invoice",label:"Purchase Orders"},deliveries:{icon:"fa-truck",label:"Deliveries"},payments:{icon:"fa-credit-card",label:"Payments"},documents:{icon:"fa-folder-open",label:"Documents"},settings:{icon:"fa-gear",label:"Settings"}};function ge(e){const t=oe[e]||oe.dashboard,a=document.getElementById("topnavBreadcrumb");a&&(a.innerHTML=`<i class="fa-solid ${t.icon} me-2 text-primary-brand"></i><span>${t.label}</span>`)}function f(e){return e==="preparing"?"pending":e==="partially-delivered"?"partial":e}function Ke(){for(const e of l.data.purchaseOrders)for(const t of e.lines)t.received_qty==null&&(t.received_qty=0);for(const e of l.data.purchaseOrders){if(e.lines.some(s=>s.received_qty>0))continue;const a=l.data.deliveries.filter(s=>s.related_po===e.id&&["partial","delivered"].includes(f(s.status)));for(const s of a)for(const i of s.lines){const n=e.lines.find(o=>o.product_id===i.product_id);n&&(n.received_qty=(n.received_qty||0)+(i.delivered_qty||i.receive_qty||0))}}for(const e of l.data.payments)e.amount_paid==null&&(e.amount_paid=e.status==="paid"?e.amount:0)}function $(e){const t=e.lines.map(d=>{const r=d.quantity,c=d.received_qty||0,m=Math.max(0,r-c);return{product_id:d.product_id,product_name:d.product_name,ordered:r,received:c,remaining:m,unit_price_ht:d.unit_price_ht,surface_mm2:d.surface_mm2}}),a=t.reduce((d,r)=>d+r.ordered,0),s=t.reduce((d,r)=>d+r.received,0),i=t.reduce((d,r)=>d+r.remaining,0),n=e.lines.reduce((d,r)=>d+(r.received_qty||0)*r.unit_price_ht,0),o=e.total_ht||0;return{lines:t,totalOrdered:a,totalReceived:s,totalRemaining:i,receivedAmount:n,orderedAmount:o,pct:a>0?Math.round(s/a*100):0,isComplete:i===0,hasPartial:s>0&&i>0}}function z(e){return(e.delivered_qty||e.receive_qty||0)*(e.unit_price_ht||0)}function P(e){return["partial","delivered"].includes(f(e.status))?e.amount!=null?e.amount:(e.lines||[]).reduce((t,a)=>t+z(a),0):(e.lines||[]).reduce((t,a)=>t+z(a),0)}function Z(e){return Math.max(0,(e.amount||0)-(e.amount_paid||0))}function X(e,t="Fulfillment"){return`
+(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const i of document.querySelectorAll('link[rel="modulepreload"]'))s(i);new MutationObserver(i=>{for(const n of i)if(n.type==="childList")for(const o of n.addedNodes)o.tagName==="LINK"&&o.rel==="modulepreload"&&s(o)}).observe(document,{childList:!0,subtree:!0});function a(i){const n={};return i.integrity&&(n.integrity=i.integrity),i.referrerPolicy&&(n.referrerPolicy=i.referrerPolicy),i.crossOrigin==="use-credentials"?n.credentials="include":i.crossOrigin==="anonymous"?n.credentials="omit":n.credentials="same-origin",n}function s(i){if(i.ep)return;i.ep=!0;const n=a(i);fetch(i.href,n)}})();const D={companyName:"WAVE VI",supplierName:"SGS Printing Services",currency:"TND",defaultVat:0,theme:"light",categories:["Tickets","Flyers","Posters","Brochures","Badges","Labels","Packaging","Signage","Other"]};let b=null;const h={product:0,purchaseOrder:0,delivery:0,payment:0,document:0,poNumber:0};function xe(e){return`./data/${e}?v=${Date.now()}`}async function E(e){const t=await fetch(xe(e));if(!t.ok)throw new Error(`Failed to load data/${e} (${t.status})`);return t.json()}async function Se(){return E("products.json")}async function Ie(){return E("purchase-orders.json")}async function De(){return E("deliveries.json")}async function Ee(){return E("payments.json")}async function Oe(){return E("documents.json")}async function ke(){const e=await E("settings.json"),{categories:t,...a}=e||{};return{settings:{...D,...a},categories:t!=null&&t.length?t:[...D.categories]}}async function Be(){const[e,t,a,s,i,n]=await Promise.all([Se(),Ie(),De(),Ee(),Oe(),ke()]);return b={products:Array.isArray(e)?e:[],purchaseOrders:Array.isArray(t)?t:[],deliveries:Array.isArray(a)?a:[],payments:Array.isArray(s)?s:[],documents:Array.isArray(i)?i:[],settings:n.settings,categories:n.categories},ue(b),ce(b.purchaseOrders),b}function S(){return b||(b={products:[],purchaseOrders:[],deliveries:[],payments:[],documents:[],settings:{...D},categories:[...D.categories]}),b}async function Le(e){const t=S(),a=t.products.findIndex(s=>s.id===e.id);a>=0?t.products[a]=e:t.products.push(e)}async function A(e){const t=S(),a=t.purchaseOrders.findIndex(s=>s.id===e.id);a>=0?t.purchaseOrders[a]=e:t.purchaseOrders.push(e)}async function B(e){const t=S(),a=t.deliveries.findIndex(s=>s.id===e.id);a>=0?t.deliveries[a]=e:t.deliveries.push(e)}async function le(e){const t=S(),a=t.payments.findIndex(s=>s.id===e.id);a>=0?t.payments[a]=e:t.payments.push(e)}async function Te(e){const t=S(),a=t.documents.findIndex(s=>s.id===e.id);a>=0?t.documents[a]=e:t.documents.push(e)}async function re(e){const t=S();t.settings={...t.settings,...e}}function Ce(){const e=S();return{version:2,exportedAt:new Date().toISOString(),products:e.products,purchase_orders:e.purchaseOrders,deliveries:e.deliveries,payments:e.payments,documents:e.documents,settings:e.settings,categories:e.categories}}function Me(){const e=S(),{categories:t,...a}=e.settings;return{"products.json":e.products,"purchase-orders.json":e.purchaseOrders,"deliveries.json":e.deliveries,"payments.json":e.payments,"documents.json":e.documents,"settings.json":{...a,categories:e.categories}}}function Ae(e){var a,s,i;const t=typeof e=="string"?JSON.parse(e):e;return b={products:t.products||[],purchaseOrders:t.purchase_orders||t.purchaseOrders||[],deliveries:t.deliveries||[],payments:t.payments||[],documents:t.documents||[],settings:{...D,...t.settings||{}},categories:(a=t.categories)!=null&&a.length?t.categories:(i=(s=t.settings)==null?void 0:s.categories)!=null&&i.length?t.settings.categories:[...D.categories]},b.settings.categories=b.categories,ue(b),ce(b.purchaseOrders),b}function L(e,t){return h[t]=(h[t]||0)+1,`${e}-${String(h[t]).padStart(3,"0")}`}function Ne(){const e=(h.poNumber||0)+1;return`PO-SGS-${String(e).padStart(3,"0")}`}function Fe(){return h.poNumber=(h.poNumber||0)+1,`PO-SGS-${String(h.poNumber).padStart(3,"0")}`}function ce(e){if(!(e!=null&&e.length))return;const t=e.reduce((a,s)=>{const i=(s.po_number||"").match(/^PO-SGS-(\d+)$/);return i?Math.max(a,parseInt(i[1],10)):a},0);t>0&&(h.poNumber=t)}function ue(e){h.product=k(e.products,"PRD-"),h.purchaseOrder=k(e.purchase_orders||e.purchaseOrders,"PO-"),h.delivery=k(e.deliveries,"DEL-"),h.payment=k(e.payments,"PAY-"),h.document=k(e.documents,"DOC-")}function k(e,t){return e!=null&&e.length?e.reduce((a,s)=>{const i=s.id||"";if(!i.startsWith(t))return a;const n=parseInt(i.slice(t.length),10);return Number.isNaN(n)?a:Math.max(a,n)},0):0}function me(e,t){const a=new Blob([JSON.stringify(e,null,2)],{type:"application/json"}),s=document.createElement("a");s.href=URL.createObjectURL(a),s.download=t,s.click(),URL.revokeObjectURL(s.href)}function Re(){const e=Me();for(const[t,a]of Object.entries(e))me(a,t)}const J="wavevi_session",qe={wavevi:{password:"waveiovi",role:"admin",displayName:"WAVE VI",roleLabel:"Administrator",initials:"WV"},sgs:{password:"sgs",role:"supplier",displayName:"SGS Printing Services",roleLabel:"Supplier",initials:"SG"}};function je(e,t){const a=qe[e.trim().toLowerCase()];if(!a||a.password!==t)return null;const s={username:e.trim().toLowerCase(),role:a.role,displayName:a.displayName,roleLabel:a.roleLabel,initials:a.initials,loggedInAt:new Date().toISOString()};return sessionStorage.setItem(J,JSON.stringify(s)),s}function He(){sessionStorage.removeItem(J)}function Q(){try{const e=sessionStorage.getItem(J);return e?JSON.parse(e):null}catch{return null}}function Ue(){return!!Q()}function N(){var e;return((e=Q())==null?void 0:e.role)==="admin"}function g(){return N()}function pe(e){return!(e==="settings"&&!N())}const d={data:{products:[],purchaseOrders:[],deliveries:[],payments:[],documents:[],categories:[],settings:{}},currentPage:"dashboard",charts:{},theme:"light"};document.addEventListener("DOMContentLoaded",()=>{Ve()});function Ve(){var t;const e=document.getElementById("loginForm");e==null||e.addEventListener("submit",a=>{a.preventDefault();const s=document.getElementById("loginUser").value,i=document.getElementById("loginPass").value,n=document.getElementById("loginError");if(!je(s,i)){n.textContent="Invalid username or password.",n.classList.remove("d-none");return}n.classList.add("d-none"),ie()}),(t=document.getElementById("logoutBtn"))==null||t.addEventListener("click",()=>{confirm("Sign out?")&&(He(),location.reload())}),Ue()&&ie()}async function ie(){var t,a;(t=document.getElementById("loginScreen"))==null||t.classList.add("d-none"),(a=document.getElementById("appShell"))==null||a.classList.remove("d-none"),Ge(),await X(),ee(),Qe(),Ke(),Ye(),Ze(),ve(d.currentPage);const e=window.location.hash.slice(1)||"dashboard";x(pe(e)?e:"dashboard")}function Ge(){const e=Q();e&&(document.getElementById("profileName").textContent=e.displayName,document.getElementById("profileRole").textContent=e.roleLabel,document.getElementById("profileInitials").textContent=e.initials,document.getElementById("sidebarUserName").textContent=e.displayName,document.getElementById("sidebarUserRole").textContent=e.roleLabel,document.querySelectorAll(".admin-only").forEach(t=>{t.classList.toggle("hidden-role",!N())}))}function T(){return g()?"":'<div class="readonly-banner"><i class="fa-solid fa-eye"></i> Read-only access — contact WAVE VI admin to make changes.</div>'}const ne={dashboard:{icon:"fa-gauge-high",label:"Dashboard"},products:{icon:"fa-box-open",label:"Product Catalog"},"purchase-orders":{icon:"fa-file-invoice",label:"Purchase Orders"},deliveries:{icon:"fa-truck",label:"Deliveries"},payments:{icon:"fa-credit-card",label:"Payments"},documents:{icon:"fa-folder-open",label:"Documents"},settings:{icon:"fa-gear",label:"Settings"}};function ve(e){const t=ne[e]||ne.dashboard,a=document.getElementById("topnavBreadcrumb");a&&(a.innerHTML=`<i class="fa-solid ${t.icon} me-2 text-primary-brand"></i><span>${t.label}</span>`)}function f(e){return e==="preparing"?"pending":e==="partially-delivered"?"partial":e}function We(){for(const e of d.data.purchaseOrders)for(const t of e.lines)t.received_qty==null&&(t.received_qty=0);for(const e of d.data.purchaseOrders){if(e.lines.some(s=>s.received_qty>0))continue;const a=d.data.deliveries.filter(s=>s.related_po===e.id&&["partial","delivered"].includes(f(s.status)));for(const s of a)for(const i of s.lines){const n=e.lines.find(o=>o.product_id===i.product_id);n&&(n.received_qty=(n.received_qty||0)+(i.delivered_qty||i.receive_qty||0))}}for(const e of d.data.payments)e.amount_paid==null&&(e.amount_paid=e.status==="paid"?e.amount:0)}function _(e){const t=e.lines.map(l=>{const r=l.quantity,c=l.received_qty||0,m=Math.max(0,r-c);return{product_id:l.product_id,product_name:l.product_name,ordered:r,received:c,remaining:m,unit_price_ht:l.unit_price_ht,surface_mm2:l.surface_mm2}}),a=t.reduce((l,r)=>l+r.ordered,0),s=t.reduce((l,r)=>l+r.received,0),i=t.reduce((l,r)=>l+r.remaining,0),n=e.lines.reduce((l,r)=>l+(r.received_qty||0)*r.unit_price_ht,0),o=e.total_ht||0;return{lines:t,totalOrdered:a,totalReceived:s,totalRemaining:i,receivedAmount:n,orderedAmount:o,pct:a>0?Math.round(s/a*100):0,isComplete:i===0,hasPartial:s>0&&i>0}}function G(e){return(e.delivered_qty||e.receive_qty||0)*(e.unit_price_ht||0)}function I(e){return["partial","delivered"].includes(f(e.status))?e.amount!=null?e.amount:(e.lines||[]).reduce((t,a)=>t+G(a),0):(e.lines||[]).reduce((t,a)=>t+G(a),0)}function Y(e){return Math.max(0,(e.amount||0)-(e.amount_paid||0))}function K(e,t="Fulfillment"){return`
     <div class="fulfillment-block">
       <div class="d-flex justify-content-between mb-1">
         <small class="text-muted">${t}</small>
@@ -8,7 +8,7 @@
         <div class="progress-bar-custom" style="width:${e}%;background:var(--brand-primary)"></div>
       </div>
     </div>
-  `}function be(e){const t=l.data.deliveries.find(o=>o.related_po===e.id&&f(o.status)==="pending");if(t)return t;const a=$(e);if(a.totalRemaining===0)return null;const s=l.data.deliveries.filter(o=>o.related_po===e.id).length+1,i=s>1?`-${String(s).padStart(2,"0")}`:"",n=a.lines.filter(o=>o.remaining>0).map(o=>({product_id:o.product_id,product_name:o.product_name,ordered_qty:o.ordered,remaining_qty:o.remaining,receive_qty:o.remaining,delivered_qty:0,unit_price_ht:o.unit_price_ht,surface_mm2:o.surface_mm2||0,line_total:o.remaining*o.unit_price_ht}));return{id:k("DEL","delivery"),delivery_number:`DEL-${e.po_number}${i}`,related_po:e.id,po_number:e.po_number,status:"pending",delivery_date:null,amount:0,lines:n,documents:[],notes:`Auto-created from ${e.po_number}`,created_at:new Date().toISOString(),updated_at:new Date().toISOString()}}async function Ze(e){const t=l.data.payments.find(i=>i.related_delivery===e.id);if(t)return t;const a=P(e),s={id:k("PAY","payment"),payment_reference:`PAY-${e.delivery_number}`,related_po:e.related_po,related_delivery:e.id,delivery_number:e.delivery_number,po_number:e.po_number,payment_method:"bank-transfer",amount:a,amount_paid:0,payment_date:null,status:"pending",created_at:new Date().toISOString(),updated_at:new Date().toISOString()};return await ve(s),l.data.payments.push(s),s}async function ee(e){var s;if(!g())return;const t=l.data.purchaseOrders.find(i=>i.id===e);if(!t)return;const a=$(t);if(a.totalReceived===0){v("Receive at least one delivery before closing partially","warning");return}if(confirm(`Close PO ${t.po_number} with ${a.pct}% received? Remaining qty will not be delivered.`)){t.status="completed-partial",t.updated_at=new Date().toISOString(),t.actual_delivery_date=new Date().toISOString().split("T")[0];for(const i of l.data.deliveries.filter(n=>n.related_po===e&&f(n.status)==="pending"))i.status="cancelled",i.updated_at=new Date().toISOString(),await O(i);await A(t),q(),(s=bootstrap.Modal.getInstance(document.getElementById("poModal")))==null||s.hide(),w("purchase-orders"),v("PO closed with partial fulfillment","success")}}function le(e){const t=l.data.deliveries.find(i=>i.id===e);if(!t)return 0;let a=0;t.lines.forEach((i,n)=>{const o=document.getElementById(`receiveQty_${e}_${n}`),d=parseInt(o==null?void 0:o.value)||0;a+=d*(i.unit_price_ht||0);const r=document.getElementById(`lineAmount_${e}_${n}`);r&&(r.textContent=p(d*(i.unit_price_ht||0)))});const s=document.getElementById(`deliveryPreviewTotal_${e}`);return s&&(s.textContent=p(a)),a}async function te(){try{const e=await pe();l.data.products=e.products,l.data.purchaseOrders=e.purchaseOrders,l.data.deliveries=e.deliveries,l.data.payments=e.payments,l.data.documents=e.documents,l.data.categories=e.categories,l.data.settings=e.settings,l.data.settings.currency==="MAD"&&(l.data.settings.currency="TND",await M(l.data.settings)),l.theme=e.settings.theme||"light",Ke(),q()}catch(e){console.error("Error loading data:",e),v("Error loading data. Please refresh the page.","danger")}}function he(){document.documentElement.setAttribute("data-theme",l.theme),we()}async function Xe(){l.theme=l.theme==="light"?"dark":"light",document.documentElement.setAttribute("data-theme",l.theme),R()&&(l.data.settings.theme=l.theme,await M(l.data.settings)),we()}function we(){const e=document.getElementById("themeIcon")||document.querySelector("#themeToggle i");e&&(e.className=l.theme==="light"?"fa-solid fa-moon":"fa-solid fa-sun")}function et(){window.addEventListener("hashchange",()=>{_(window.location.hash.slice(1)||"dashboard")})}function _(e){ye(e)||(v("You do not have access to this page.","warning"),e="dashboard"),l.currentPage=e,window.location.hash=e,document.querySelectorAll(".nav-link").forEach(t=>{t.classList.toggle("active",t.dataset.page===e)}),ge(e),w(e)}function tt(){var a,s,i,n,o;(a=document.getElementById("themeToggle"))==null||a.addEventListener("click",Xe);const e=document.getElementById("sidebar"),t=document.getElementById("sidebarOverlay");(s=document.getElementById("sidebarToggle"))==null||s.addEventListener("click",()=>{e==null||e.classList.add("mobile-open"),t==null||t.classList.add("show")}),(i=document.getElementById("sidebarClose"))==null||i.addEventListener("click",V),t==null||t.addEventListener("click",V),(n=document.getElementById("notificationBtn"))==null||n.addEventListener("click",d=>{var r;d.stopPropagation(),(r=document.getElementById("notifDropdown"))==null||r.classList.toggle("show")}),document.addEventListener("click",d=>{var r;!d.target.closest("#notificationBtn")&&!d.target.closest("#notifDropdown")&&((r=document.getElementById("notifDropdown"))==null||r.classList.remove("show"))}),(o=document.getElementById("refreshData"))==null||o.addEventListener("click",async()=>{v("Refreshing data...","info"),await te(),w(l.currentPage),v("Data refreshed successfully","success")}),document.querySelectorAll(".nav-link").forEach(d=>{d.addEventListener("click",r=>{r.preventDefault();const c=d.dataset.page;c&&(_(c),V())})})}function V(){var e,t;(e=document.getElementById("sidebar"))==null||e.classList.remove("mobile-open","active"),(t=document.getElementById("sidebarOverlay"))==null||t.classList.remove("show")}function at(){const e=document.getElementById("globalSearch"),t=document.getElementById("searchResults");!e||!t||(e.addEventListener("input",a=>{const s=a.target.value.toLowerCase().trim();if(s.length<2){t.classList.remove("active","show");return}const i=[];l.data.products.forEach(n=>{(n.name.toLowerCase().includes(s)||n.reference.toLowerCase().includes(s))&&i.push({type:"product",icon:"fa-box",name:n.name,detail:n.reference,id:n.id})}),l.data.purchaseOrders.forEach(n=>{(n.po_number.toLowerCase().includes(s)||n.status.includes(s))&&i.push({type:"po",icon:"fa-file-invoice",name:n.po_number,detail:n.status,id:n.id})}),l.data.documents.forEach(n=>{n.name.toLowerCase().includes(s)&&i.push({type:"document",icon:"fa-file",name:n.name,detail:n.category,id:n.id})}),i.length>0?(t.innerHTML=i.slice(0,8).map(n=>`
+  `}function fe(e){const t=d.data.deliveries.find(o=>o.related_po===e.id&&f(o.status)==="pending");if(t)return t;const a=_(e);if(a.totalRemaining===0)return null;const s=d.data.deliveries.filter(o=>o.related_po===e.id).length+1,i=s>1?`-${String(s).padStart(2,"0")}`:"",n=a.lines.filter(o=>o.remaining>0).map(o=>({product_id:o.product_id,product_name:o.product_name,ordered_qty:o.ordered,remaining_qty:o.remaining,receive_qty:o.remaining,delivered_qty:0,unit_price_ht:o.unit_price_ht,surface_mm2:o.surface_mm2||0,line_total:o.remaining*o.unit_price_ht}));return{id:L("DEL","delivery"),delivery_number:`DEL-${e.po_number}${i}`,related_po:e.id,po_number:e.po_number,status:"pending",delivery_date:null,amount:0,lines:n,documents:[],notes:`Auto-created from ${e.po_number}`,created_at:new Date().toISOString(),updated_at:new Date().toISOString()}}async function ze(e){const t=d.data.payments.find(i=>i.related_delivery===e.id);if(t)return t;const a=I(e),s={id:L("PAY","payment"),payment_reference:`PAY-${e.delivery_number}`,related_po:e.related_po,related_delivery:e.id,delivery_number:e.delivery_number,po_number:e.po_number,payment_method:"bank-transfer",amount:a,amount_paid:0,payment_date:null,status:"pending",created_at:new Date().toISOString(),updated_at:new Date().toISOString()};return await le(s),d.data.payments.push(s),s}async function Z(e){var s;if(!g())return;const t=d.data.purchaseOrders.find(i=>i.id===e);if(!t)return;const a=_(t);if(a.totalReceived===0){v("Receive at least one delivery before closing partially","warning");return}if(confirm(`Close PO ${t.po_number} with ${a.pct}% received? Remaining qty will not be delivered.`)){t.status="completed-partial",t.updated_at=new Date().toISOString(),t.actual_delivery_date=new Date().toISOString().split("T")[0];for(const i of d.data.deliveries.filter(n=>n.related_po===e&&f(n.status)==="pending"))i.status="cancelled",i.updated_at=new Date().toISOString(),await B(i);await A(t),q(),(s=bootstrap.Modal.getInstance(document.getElementById("poModal")))==null||s.hide(),P("purchase-orders"),v("PO closed with partial fulfillment","success")}}function oe(e){const t=d.data.deliveries.find(i=>i.id===e);if(!t)return 0;let a=0;t.lines.forEach((i,n)=>{const o=document.getElementById(`receiveQty_${e}_${n}`),l=parseInt(o==null?void 0:o.value)||0;a+=l*(i.unit_price_ht||0);const r=document.getElementById(`lineAmount_${e}_${n}`);r&&(r.textContent=p(l*(i.unit_price_ht||0)))});const s=document.getElementById(`deliveryPreviewTotal_${e}`);return s&&(s.textContent=p(a)),a}async function X(){try{const e=await Be();d.data.products=e.products,d.data.purchaseOrders=e.purchaseOrders,d.data.deliveries=e.deliveries,d.data.payments=e.payments,d.data.documents=e.documents,d.data.categories=e.categories,d.data.settings=e.settings,d.data.settings.currency==="MAD"&&(d.data.settings.currency="TND"),d.theme=e.settings.theme||"light",We(),q()}catch(e){console.error("Error loading data:",e),v("Error loading data. Please refresh the page.","danger")}}function ee(){document.documentElement.setAttribute("data-theme",d.theme),ye()}async function Je(){d.theme=d.theme==="light"?"dark":"light",document.documentElement.setAttribute("data-theme",d.theme),N()&&(d.data.settings.theme=d.theme,await re(d.data.settings)),ye()}function ye(){const e=document.getElementById("themeIcon")||document.querySelector("#themeToggle i");e&&(e.className=d.theme==="light"?"fa-solid fa-moon":"fa-solid fa-sun")}function Qe(){window.addEventListener("hashchange",()=>{x(window.location.hash.slice(1)||"dashboard")})}function x(e){pe(e)||(v("You do not have access to this page.","warning"),e="dashboard"),d.currentPage=e,window.location.hash=e,document.querySelectorAll(".nav-link").forEach(t=>{t.classList.toggle("active",t.dataset.page===e)}),ve(e),P(e)}function Ye(){var a,s,i,n,o;(a=document.getElementById("themeToggle"))==null||a.addEventListener("click",Je);const e=document.getElementById("sidebar"),t=document.getElementById("sidebarOverlay");(s=document.getElementById("sidebarToggle"))==null||s.addEventListener("click",()=>{e==null||e.classList.add("mobile-open"),t==null||t.classList.add("show")}),(i=document.getElementById("sidebarClose"))==null||i.addEventListener("click",U),t==null||t.addEventListener("click",U),(n=document.getElementById("notificationBtn"))==null||n.addEventListener("click",l=>{var r;l.stopPropagation(),(r=document.getElementById("notifDropdown"))==null||r.classList.toggle("show")}),document.addEventListener("click",l=>{var r;!l.target.closest("#notificationBtn")&&!l.target.closest("#notifDropdown")&&((r=document.getElementById("notifDropdown"))==null||r.classList.remove("show"))}),(o=document.getElementById("refreshData"))==null||o.addEventListener("click",async()=>{v("Refreshing data...","info"),await X(),P(d.currentPage),v("Data refreshed successfully","success")}),document.querySelectorAll(".nav-link").forEach(l=>{l.addEventListener("click",r=>{r.preventDefault();const c=l.dataset.page;c&&(x(c),U())})})}function U(){var e,t;(e=document.getElementById("sidebar"))==null||e.classList.remove("mobile-open","active"),(t=document.getElementById("sidebarOverlay"))==null||t.classList.remove("show")}function Ke(){const e=document.getElementById("globalSearch"),t=document.getElementById("searchResults");!e||!t||(e.addEventListener("input",a=>{const s=a.target.value.toLowerCase().trim();if(s.length<2){t.classList.remove("active","show");return}const i=[];d.data.products.forEach(n=>{(n.name.toLowerCase().includes(s)||n.reference.toLowerCase().includes(s))&&i.push({type:"product",icon:"fa-box",name:n.name,detail:n.reference,id:n.id})}),d.data.purchaseOrders.forEach(n=>{(n.po_number.toLowerCase().includes(s)||n.status.includes(s))&&i.push({type:"po",icon:"fa-file-invoice",name:n.po_number,detail:n.status,id:n.id})}),d.data.documents.forEach(n=>{n.name.toLowerCase().includes(s)&&i.push({type:"document",icon:"fa-file",name:n.name,detail:n.category,id:n.id})}),i.length>0?(t.innerHTML=i.slice(0,8).map(n=>`
         <div class="search-result-item" data-type="${n.type}" data-id="${n.id}">
           <i class="fas ${n.icon}"></i>
           <div>
@@ -16,8 +16,8 @@
             <small>${n.detail}</small>
           </div>
         </div>
-      `).join(""),t.classList.add("active","show"),t.querySelectorAll(".search-result-item").forEach(n=>{n.addEventListener("click",()=>{t.classList.remove("active","show"),e.value="",n.dataset.type==="product"?(_("products"),setTimeout(()=>T(n.dataset.id),100)):n.dataset.type==="po"&&(_("purchase-orders"),setTimeout(()=>ae(n.dataset.id),100))})})):(t.innerHTML='<div class="p-3 text-center text-muted">No results found</div>',t.classList.add("active","show"))}),document.addEventListener("click",a=>{a.target.closest(".search-container")||t.classList.remove("active","show")}))}function st(){const e=document.getElementById("lastUpdate");e&&(e.textContent=new Date().toLocaleString("en-US",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}))}function w(e){const t=document.getElementById("mainContent");if(t)switch(e){case"dashboard":de(t);break;case"products":lt(t);break;case"purchase-orders":ut(t);break;case"deliveries":xt(t);break;case"payments":Dt(t);break;case"documents":Tt(t);break;case"settings":Ft(t);break;default:de(t)}}function de(e){const t=it();e.innerHTML=`
-    ${L()}
+      `).join(""),t.classList.add("active","show"),t.querySelectorAll(".search-result-item").forEach(n=>{n.addEventListener("click",()=>{t.classList.remove("active","show"),e.value="",n.dataset.type==="product"?(x("products"),setTimeout(()=>C(n.dataset.id),100)):n.dataset.type==="po"&&(x("purchase-orders"),setTimeout(()=>te(n.dataset.id),100))})})):(t.innerHTML='<div class="p-3 text-center text-muted">No results found</div>',t.classList.add("active","show"))}),document.addEventListener("click",a=>{a.target.closest(".search-container")||t.classList.remove("active","show")}))}function Ze(){const e=document.getElementById("lastUpdate");e&&(e.textContent=new Date().toLocaleString("en-US",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}))}function P(e){const t=document.getElementById("mainContent");if(t)switch(e){case"dashboard":de(t);break;case"products":at(t);break;case"purchase-orders":ot(t);break;case"deliveries":ht(t);break;case"payments":_t(t);break;case"documents":Et(t);break;case"settings":Tt(t);break;default:de(t)}}function de(e){const t=Xe();e.innerHTML=`
+    ${T()}
     <div class="page-header">
       <h1 class="page-title">Dashboard</h1>
       <p class="page-subtitle">Overview of your supplier portal activities</p>
@@ -197,20 +197,20 @@
               </tr>
             </thead>
             <tbody>
-              ${ot()}
+              ${tt()}
             </tbody>
           </table>
         </div>
       </div>
     </div>
-  `,setTimeout(()=>{nt(t)},100)}function it(){const e=l.data.purchaseOrders.filter(c=>c.status!=="cancelled"),t=e.reduce((c,m)=>c+(m.total_ht||0),0),a=l.data.deliveries.filter(c=>["partial","delivered"].includes(f(c.status))),s=l.data.deliveries.filter(c=>f(c.status)==="pending"),i=a.reduce((c,m)=>c+P(m),0),n=l.data.payments.reduce((c,m)=>c+(m.amount_paid||0),0),o=e.reduce((c,m)=>{const y=m.status||"Unknown";return c[y]=(c[y]||0)+1,c},{}),r=["Draft","Pending","Approved","In Production","Completed","Cancelled"].map(c=>({label:c,count:o[c]||0,colorClass:c==="Draft"?"status-secondary":c==="Pending"?"status-warning":c==="Approved"?"status-info":c==="In Production"?"status-primary":c==="Completed"?"status-success":c==="Cancelled"?"status-danger":"status-secondary"}));return{totalPOs:e.length,totalHT:t,totalPaid:n,remainingBalance:Math.max(0,i-n),pendingDeliveries:s.length,deliveredOrders:a.length,paymentProgress:i>0?Math.round(n/i*100):0,partialPayments:0,orderStatusItems:r}}function nt(e){const t=document.getElementById("monthlyPurchasesChart");if(t){l.charts.monthly&&l.charts.monthly.destroy();const i=6,n=[],o=new Map,d=[],r=new Date;for(let c=i-1;c>=0;c--){const m=new Date(r.getFullYear(),r.getMonth()-c,1),y=`${m.getFullYear()}-${m.getMonth()}`;n.push(m.toLocaleString("en-US",{month:"short"})),o.set(y,d.length),d.push(0)}l.data.purchaseOrders.filter(c=>c.status!=="cancelled").forEach(c=>{const m=new Date(c.created_at||c.date||c.order_date);if(isNaN(m))return;const y=`${m.getFullYear()}-${m.getMonth()}`,u=o.get(y);typeof u=="number"&&(d[u]+=c.total_ht||0)}),l.charts.monthly=new Chart(t,{type:"bar",data:{labels:n,datasets:[{label:`Purchases (${l.data.settings.currency||"TND"})`,data:d,backgroundColor:"rgba(37, 99, 235, 0.8)",borderRadius:6}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{display:!1},tooltip:{callbacks:{label:c=>`${l.data.settings.currency||"TND"} ${c.parsed.y.toLocaleString()}`}}},scales:{y:{beginAtZero:!0,grid:{color:"rgba(0,0,0,0.05)"},ticks:{callback:c=>`${l.data.settings.currency||"TND"} ${c.toLocaleString()}`}},x:{grid:{display:!1}}}}})}const a=document.getElementById("deliveryStatusChart");a&&(l.charts.delivery&&l.charts.delivery.destroy(),l.charts.delivery=new Chart(a,{type:"doughnut",data:{labels:["Delivered","Partial","Pending","Cancelled"],datasets:[{data:[l.data.deliveries.filter(i=>f(i.status)==="delivered").length,l.data.deliveries.filter(i=>f(i.status)==="partial").length,l.data.deliveries.filter(i=>f(i.status)==="pending").length,l.data.deliveries.filter(i=>f(i.status)==="cancelled").length],backgroundColor:["#10b981","#8B5CF6","#f59e0b","#94a3b8"]}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{position:"bottom"}}}}));const s=document.getElementById("paymentProgressChart");s&&(l.charts.payment&&l.charts.payment.destroy(),l.charts.payment=new Chart(s,{type:"doughnut",data:{labels:["Paid","Pending"],datasets:[{data:[e.totalPaid,e.remainingBalance],backgroundColor:["#10b981","#ef4444"]}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{display:!1}},cutout:"70%"}}))}function ot(){const e=[];return l.data.purchaseOrders.slice(0,3).forEach(t=>{e.push({date:t.created_at,action:"Purchase Order Created",reference:t.po_number,status:t.status})}),l.data.deliveries.slice(0,2).forEach(t=>{e.push({date:t.updated_at,action:"Delivery "+(t.status==="delivered"?"Completed":"Updated"),reference:t.delivery_number,status:t.status==="delivered"?"completed":"in-production"})}),e.sort((t,a)=>new Date(a.date)-new Date(t.date)),e.slice(0,5).map(t=>`
+  `,setTimeout(()=>{et(t)},100)}function Xe(){const e=d.data.purchaseOrders.filter(c=>c.status!=="cancelled"),t=e.reduce((c,m)=>c+(m.total_ht||0),0),a=d.data.deliveries.filter(c=>["partial","delivered"].includes(f(c.status))),s=d.data.deliveries.filter(c=>f(c.status)==="pending"),i=a.reduce((c,m)=>c+I(m),0),n=d.data.payments.reduce((c,m)=>c+(m.amount_paid||0),0),o=e.reduce((c,m)=>{const y=m.status||"Unknown";return c[y]=(c[y]||0)+1,c},{}),r=["Draft","Pending","Approved","In Production","Completed","Cancelled"].map(c=>({label:c,count:o[c]||0,colorClass:c==="Draft"?"status-secondary":c==="Pending"?"status-warning":c==="Approved"?"status-info":c==="In Production"?"status-primary":c==="Completed"?"status-success":c==="Cancelled"?"status-danger":"status-secondary"}));return{totalPOs:e.length,totalHT:t,totalPaid:n,remainingBalance:Math.max(0,i-n),pendingDeliveries:s.length,deliveredOrders:a.length,paymentProgress:i>0?Math.round(n/i*100):0,partialPayments:0,orderStatusItems:r}}function et(e){const t=document.getElementById("monthlyPurchasesChart");if(t){d.charts.monthly&&d.charts.monthly.destroy();const i=6,n=[],o=new Map,l=[],r=new Date;for(let c=i-1;c>=0;c--){const m=new Date(r.getFullYear(),r.getMonth()-c,1),y=`${m.getFullYear()}-${m.getMonth()}`;n.push(m.toLocaleString("en-US",{month:"short"})),o.set(y,l.length),l.push(0)}d.data.purchaseOrders.filter(c=>c.status!=="cancelled").forEach(c=>{const m=new Date(c.created_at||c.date||c.order_date);if(isNaN(m))return;const y=`${m.getFullYear()}-${m.getMonth()}`,u=o.get(y);typeof u=="number"&&(l[u]+=c.total_ht||0)}),d.charts.monthly=new Chart(t,{type:"bar",data:{labels:n,datasets:[{label:`Purchases (${d.data.settings.currency||"TND"})`,data:l,backgroundColor:"rgba(37, 99, 235, 0.8)",borderRadius:6}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{display:!1},tooltip:{callbacks:{label:c=>`${d.data.settings.currency||"TND"} ${c.parsed.y.toLocaleString()}`}}},scales:{y:{beginAtZero:!0,grid:{color:"rgba(0,0,0,0.05)"},ticks:{callback:c=>`${d.data.settings.currency||"TND"} ${c.toLocaleString()}`}},x:{grid:{display:!1}}}}})}const a=document.getElementById("deliveryStatusChart");a&&(d.charts.delivery&&d.charts.delivery.destroy(),d.charts.delivery=new Chart(a,{type:"doughnut",data:{labels:["Delivered","Partial","Pending","Cancelled"],datasets:[{data:[d.data.deliveries.filter(i=>f(i.status)==="delivered").length,d.data.deliveries.filter(i=>f(i.status)==="partial").length,d.data.deliveries.filter(i=>f(i.status)==="pending").length,d.data.deliveries.filter(i=>f(i.status)==="cancelled").length],backgroundColor:["#10b981","#8B5CF6","#f59e0b","#94a3b8"]}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{position:"bottom"}}}}));const s=document.getElementById("paymentProgressChart");s&&(d.charts.payment&&d.charts.payment.destroy(),d.charts.payment=new Chart(s,{type:"doughnut",data:{labels:["Paid","Pending"],datasets:[{data:[e.totalPaid,e.remainingBalance],backgroundColor:["#10b981","#ef4444"]}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{display:!1}},cutout:"70%"}}))}function tt(){const e=[];return d.data.purchaseOrders.slice(0,3).forEach(t=>{e.push({date:t.created_at,action:"Purchase Order Created",reference:t.po_number,status:t.status})}),d.data.deliveries.slice(0,2).forEach(t=>{e.push({date:t.updated_at,action:"Delivery "+(t.status==="delivered"?"Completed":"Updated"),reference:t.delivery_number,status:t.status==="delivered"?"completed":"in-production"})}),e.sort((t,a)=>new Date(a.date)-new Date(t.date)),e.slice(0,5).map(t=>`
     <tr>
-      <td>${h(t.date)}</td>
+      <td>${$(t.date)}</td>
       <td>${t.action}</td>
       <td><a href="#purchase-orders" class="text-primary" onclick="navigateTo('purchase-orders'); return false;">${t.reference}</a></td>
-      <td><span class="status-badge ${t.status}">${b(t.status)}</span></td>
+      <td><span class="status-badge ${t.status}">${w(t.status)}</span></td>
     </tr>
-  `).join("")}function lt(e){const t=l.data.products;e.innerHTML=`
+  `).join("")}function at(e){const t=d.data.products;e.innerHTML=`
     <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div>
         <h1 class="page-title">Product Catalog</h1>
@@ -229,7 +229,7 @@
         <label>Category:</label>
         <select class="form-select form-select-sm" id="categoryFilter" onchange="filterProducts()">
           <option value="">All Categories</option>
-          ${l.data.categories.map(a=>`<option value="${a}">${a}</option>`).join("")}
+          ${d.data.categories.map(a=>`<option value="${a}">${a}</option>`).join("")}
         </select>
       </div>
       <div class="filter-group">
@@ -240,9 +240,9 @@
 
     <!-- Products Grid -->
     <div class="products-grid" id="productsGrid">
-      ${t.map(a=>$e(a)).join("")}
+      ${t.map(a=>ge(a)).join("")}
     </div>
-  `,window.showProductModal=T,window.filterProducts=dt}function $e(e){return`
+  `,window.showProductModal=C,window.filterProducts=st}function ge(e){return`
     <div class="product-card" data-category="${e.category}" data-id="${e.id}">
       <div class="product-image">
         ${e.product_image?`<img src="${e.product_image}" alt="${e.name}" loading="lazy">`:'<div class="product-image-placeholder"><i class="fas fa-image"></i></div>'}
@@ -252,7 +252,7 @@
         <h3 class="product-name">${e.name}</h3>
         <div class="product-reference">${e.reference}</div>
         <div class="product-price">${p(e.price_ht)} HT</div>
-        ${e.surface_mm2?`<div class="product-reference small">${S(e.surface_mm2)}</div>`:""}
+        ${e.surface_mm2?`<div class="product-reference small">${O(e.surface_mm2)}</div>`:""}
       </div>
       <div class="product-actions d-flex gap-2 px-3 pb-3">
         <button class="btn btn-sm btn-outline-primary flex-grow-1" onclick="showProductModal('${e.id}')">
@@ -260,7 +260,7 @@
         </button>
       </div>
     </div>
-  `}function dt(){var i,n;const e=((i=document.getElementById("categoryFilter"))==null?void 0:i.value)||"",t=((n=document.getElementById("productSearch"))==null?void 0:n.value.toLowerCase())||"";let a=l.data.products;e&&(a=a.filter(o=>o.category===e)),t&&(a=a.filter(o=>o.name.toLowerCase().includes(t)||o.reference.toLowerCase().includes(t)));const s=document.getElementById("productsGrid");s&&(s.innerHTML=a.map(o=>$e(o)).join(""))}function T(e=null){var o;if(!e&&!g()){v("You have read-only access.","warning");return}const t=e?l.data.products.find(d=>d.id===e):null,a=!!t,s=`
+  `}function st(){var i,n;const e=((i=document.getElementById("categoryFilter"))==null?void 0:i.value)||"",t=((n=document.getElementById("productSearch"))==null?void 0:n.value.toLowerCase())||"";let a=d.data.products;e&&(a=a.filter(o=>o.category===e)),t&&(a=a.filter(o=>o.name.toLowerCase().includes(t)||o.reference.toLowerCase().includes(t)));const s=document.getElementById("productsGrid");s&&(s.innerHTML=a.map(o=>ge(o)).join(""))}function C(e=null){var o;if(!e&&!g()){v("You have read-only access.","warning");return}const t=e?d.data.products.find(l=>l.id===e):null,a=!!t,s=`
     <div class="modal fade" id="productModal" tabindex="-1">
       <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -325,7 +325,7 @@
                   <div class="col-md-6">
                     <label class="form-label">Category *</label>
                     <select class="form-select" id="productCategory" required>
-                      ${l.data.categories.map(d=>`<option value="${d}">${d}</option>`).join("")}
+                      ${d.data.categories.map(l=>`<option value="${l}">${l}</option>`).join("")}
                     </select>
                   </div>
                   <div class="col-md-6">
@@ -444,7 +444,7 @@
         </div>
       </div>
     </div>
-  `;(o=document.getElementById("productModal"))==null||o.remove(),document.body.insertAdjacentHTML("beforeend",s),new bootstrap.Modal(document.getElementById("productModal")).show();const n=document.getElementById("downloadSourceFileBtn");n&&(t!=null&&t.source_file)&&n.addEventListener("click",()=>j(t.source_file,t.source_file_name||"source-file")),document.getElementById("productModal").addEventListener("hidden.bs.modal",function(){this.remove()}),window.saveProduct=ct,window.updateProductSurfacePreview=rt,window.previewDataUrl=ie}function rt(){var o,d,r;const e=(o=document.getElementById("productFormat"))==null?void 0:o.value,t=(d=document.getElementById("productDimWidth"))==null?void 0:d.value,a=(r=document.getElementById("productDimHeight"))==null?void 0:r.value,s=document.getElementById("dimHeightGroup"),i=document.getElementById("dimWidthLabel"),n=document.getElementById("productSurface");if(s&&(s.style.display=e==="rectangle"?"":"none"),i&&(i.textContent=e==="circle"?"Diameter (mm)":e==="square"?"Side (mm)":"Width (mm)"),n){const c=Se(e,t,a);n.value=c>0?S(c):""}}async function ct(){var r,c;if(!g())return;const e=document.getElementById("productFormat").value,t=parseFloat(document.getElementById("productDimWidth").value)||0,a=parseFloat(document.getElementById("productDimHeight").value)||0,s=Se(e,t,a),i=document.getElementById("productImageFile").files[0],n=document.getElementById("deliveryImageFile").files[0],o=document.getElementById("sourceFile").files[0],d={id:k("PRD","product"),reference:document.getElementById("productRef").value,name:document.getElementById("productName").value,category:document.getElementById("productCategory").value,unit:document.getElementById("productUnit").value,description:document.getElementById("productDesc").value,price_ht:parseFloat(document.getElementById("productPrice").value),print_support:document.getElementById("productPrintSupport").value,print_method:document.getElementById("productPrintMethod").value,material:((r=document.getElementById("productMaterial"))==null?void 0:r.value)||null,finish:((c=document.getElementById("productFinish"))==null?void 0:c.value)||null,format:e,dimension_width:t,dimension_height:e==="rectangle"?a:null,surface_mm2:s,product_image:i?await G(i):null,delivery_image:n?await G(n):null,source_file:o?await G(o):null,source_file_name:o?o.name:null,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};if(await Me(d),l.data.products.push(d),o){const m={id:k("DOC","document"),name:o.name,type:o.name.split(".").pop().toLowerCase(),category:"artwork-files",size:Vt(d.source_file),data:d.source_file,url:d.source_file,related_product:d.id,created_at:new Date().toISOString().split("T")[0]};await Ae(m),l.data.documents.push(m)}bootstrap.Modal.getInstance(document.getElementById("productModal")).hide(),w("products"),v("Product created successfully","success")}function ut(e){const t=l.data.purchaseOrders;e.innerHTML=`
+  `;(o=document.getElementById("productModal"))==null||o.remove(),document.body.insertAdjacentHTML("beforeend",s),new bootstrap.Modal(document.getElementById("productModal")).show();const n=document.getElementById("downloadSourceFileBtn");n&&(t!=null&&t.source_file)&&n.addEventListener("click",()=>j(t.source_file,t.source_file_name||"source-file")),document.getElementById("productModal").addEventListener("hidden.bs.modal",function(){this.remove()}),window.saveProduct=nt,window.updateProductSurfacePreview=it,window.previewDataUrl=se}function it(){var o,l,r;const e=(o=document.getElementById("productFormat"))==null?void 0:o.value,t=(l=document.getElementById("productDimWidth"))==null?void 0:l.value,a=(r=document.getElementById("productDimHeight"))==null?void 0:r.value,s=document.getElementById("dimHeightGroup"),i=document.getElementById("dimWidthLabel"),n=document.getElementById("productSurface");if(s&&(s.style.display=e==="rectangle"?"":"none"),i&&(i.textContent=e==="circle"?"Diameter (mm)":e==="square"?"Side (mm)":"Width (mm)"),n){const c=$e(e,t,a);n.value=c>0?O(c):""}}async function nt(){var r,c;if(!g())return;const e=document.getElementById("productFormat").value,t=parseFloat(document.getElementById("productDimWidth").value)||0,a=parseFloat(document.getElementById("productDimHeight").value)||0,s=$e(e,t,a),i=document.getElementById("productImageFile").files[0],n=document.getElementById("deliveryImageFile").files[0],o=document.getElementById("sourceFile").files[0],l={id:L("PRD","product"),reference:document.getElementById("productRef").value,name:document.getElementById("productName").value,category:document.getElementById("productCategory").value,unit:document.getElementById("productUnit").value,description:document.getElementById("productDesc").value,price_ht:parseFloat(document.getElementById("productPrice").value),print_support:document.getElementById("productPrintSupport").value,print_method:document.getElementById("productPrintMethod").value,material:((r=document.getElementById("productMaterial"))==null?void 0:r.value)||null,finish:((c=document.getElementById("productFinish"))==null?void 0:c.value)||null,format:e,dimension_width:t,dimension_height:e==="rectangle"?a:null,surface_mm2:s,product_image:i?await V(i):null,delivery_image:n?await V(n):null,source_file:o?await V(o):null,source_file_name:o?o.name:null,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};if(await Le(l),d.data.products.push(l),o){const m={id:L("DOC","document"),name:o.name,type:o.name.split(".").pop().toLowerCase(),category:"artwork-files",size:qt(l.source_file),data:l.source_file,url:l.source_file,related_product:l.id,created_at:new Date().toISOString().split("T")[0]};await Te(m),d.data.documents.push(m)}bootstrap.Modal.getInstance(document.getElementById("productModal")).hide(),P("products"),v("Product created successfully","success")}function ot(e){const t=d.data.purchaseOrders;e.innerHTML=`
     <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div>
         <h1 class="page-title">Purchase Orders</h1>
@@ -463,7 +463,7 @@
         <label>Status:</label>
         <select class="form-select form-select-sm" id="poStatusFilter" onchange="filterPOs()">
           <option value="">All Status</option>
-          ${["draft","pending","approved","in-production","completed","cancelled"].map(a=>`<option value="${a}">${b(a)}</option>`).join("")}
+          ${["draft","pending","approved","in-production","completed","cancelled"].map(a=>`<option value="${a}">${w(a)}</option>`).join("")}
         </select>
       </div>
       <div class="filter-group">
@@ -493,7 +493,7 @@
               </tr>
             </thead>
             <tbody id="poTableBody">
-              ${t.map(a=>_e(a)).join("")}
+              ${t.map(a=>be(a)).join("")}
             </tbody>
           </table>
         </div>
@@ -511,15 +511,15 @@
         </ul>
       </nav>
     </div>
-  `,window.showPOModal=ae,window.filterPOs=mt,window.exportPOs=Pt}function _e(e){return`
+  `,window.showPOModal=te,window.filterPOs=dt,window.exportPOs=bt}function be(e){return`
     <tr data-status="${e.status}" data-date="${e.date}">
       <td>
         <a href="#" class="text-primary fw-medium" onclick="showPOModal('${e.id}'); return false;">${e.po_number}</a>
       </td>
-      <td>${h(e.date)}</td>
-      <td><span class="status-badge ${e.status}">${b(e.status)}</span></td>
+      <td>${$(e.date)}</td>
+      <td><span class="status-badge ${e.status}">${w(e.status)}</span></td>
       <td>${p(e.total_ht,3)}</td>
-      <td>${e.actual_delivery_date?h(e.actual_delivery_date):e.expected_delivery_date?h(e.expected_delivery_date):"-"}</td>
+      <td>${e.actual_delivery_date?$(e.actual_delivery_date):e.expected_delivery_date?$(e.expected_delivery_date):"-"}</td>
       <td>
         <button class="action-btn" onclick="showPOModal('${e.id}')" title="View">
           <i class="fas fa-eye"></i>
@@ -534,7 +534,7 @@
         </button>
       </td>
     </tr>
-  `}function mt(){var i,n;const e=((i=document.getElementById("poStatusFilter"))==null?void 0:i.value)||"",t=((n=document.getElementById("poDateFilter"))==null?void 0:n.value)||"";let a=l.data.purchaseOrders;e&&(a=a.filter(o=>o.status===e)),t&&(a=a.filter(o=>o.date.startsWith(t)));const s=document.getElementById("poTableBody");s&&(s.innerHTML=a.map(o=>_e(o)).join(""))}function ae(e=null,t={}){var c,m,y;if(!e&&!g()){v("You have read-only access.","warning");return}const a=e?l.data.purchaseOrders.find(u=>u.id===e):null,s=a&&t.editMode&&g(),i=a&&!s;if(!a&&e)return;const n=a?l.data.deliveries.filter(u=>u.related_po===a.id):[],o=a?l.data.payments.filter(u=>u.related_po===a.id):[],d=`
+  `}function dt(){var i,n;const e=((i=document.getElementById("poStatusFilter"))==null?void 0:i.value)||"",t=((n=document.getElementById("poDateFilter"))==null?void 0:n.value)||"";let a=d.data.purchaseOrders;e&&(a=a.filter(o=>o.status===e)),t&&(a=a.filter(o=>o.date.startsWith(t)));const s=document.getElementById("poTableBody");s&&(s.innerHTML=a.map(o=>be(o)).join(""))}function te(e=null,t={}){var c,m,y;if(!e&&!g()){v("You have read-only access.","warning");return}const a=e?d.data.purchaseOrders.find(u=>u.id===e):null,s=a&&t.editMode&&g(),i=a&&!s;if(!a&&e)return;const n=a?d.data.deliveries.filter(u=>u.related_po===a.id):[],o=a?d.data.payments.filter(u=>u.related_po===a.id):[],l=`
     <div class="modal fade" id="poModal" tabindex="-1">
       <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
@@ -548,7 +548,7 @@
               <div class="mb-4">
                 <h6 class="mb-3">Order Status</h6>
                 <div class="d-flex justify-content-between">
-                  ${Ut(a.status)}
+                  ${Rt(a.status)}
                 </div>
               </div>
 
@@ -565,11 +565,11 @@
                         </div>
                         <div class="col-6">
                           <small class="text-muted">Order Date</small>
-                          <div class="fw-medium">${h(a.date)}</div>
+                          <div class="fw-medium">${$(a.date)}</div>
                         </div>
                         <div class="col-6">
                           <small class="text-muted">Expected Delivery</small>
-                          <div class="fw-medium">${a.expected_delivery_date?h(a.expected_delivery_date):"-"}</div>
+                          <div class="fw-medium">${a.expected_delivery_date?$(a.expected_delivery_date):"-"}</div>
                         </div>
                         <div class="col-6">
                           <small class="text-muted">Supplier Ref</small>
@@ -583,7 +583,7 @@
                   <div class="card">
                     <div class="card-header"><h6 class="mb-0">Financial Summary</h6></div>
                     <div class="card-body">
-                      ${(()=>{const u=$(a);return`
+                      ${(()=>{const u=_(a);return`
                           <div class="d-flex justify-content-between mb-2">
                             <span>Ordered HT</span>
                             <span class="fw-medium">${p(u.orderedAmount)}</span>
@@ -592,7 +592,7 @@
                             <span>Received HT</span>
                             <span class="fw-medium text-success">${p(u.receivedAmount)}</span>
                           </div>
-                          ${X(u.pct,"PO Fulfillment")}
+                          ${K(u.pct,"PO Fulfillment")}
                           <div class="small text-muted mt-2">${u.totalReceived} / ${u.totalOrdered} pcs received</div>
                         `})()}
                     </div>
@@ -616,7 +616,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      ${$(a).lines.map(u=>`
+                      ${_(a).lines.map(u=>`
                         <tr>
                           <td>
                             <a href="#" class="text-primary fw-medium" onclick="showProductModal('${u.product_id}'); return false;">
@@ -657,11 +657,11 @@
                         <div class="d-flex justify-content-between align-items-center">
                           <div>
                             <a href="#" class="fw-medium text-primary" onclick="navigateToDeliveriesAndShow('${u.id}'); return false;">${u.delivery_number}</a>
-                            <span class="status-badge ${f(u.status)} ms-2">${b(f(u.status))}</span>
+                            <span class="status-badge ${f(u.status)} ms-2">${w(f(u.status))}</span>
                           </div>
                           <div class="text-end">
-                            <div class="fw-medium">${p(P(u))}</div>
-                            <small class="text-muted">${u.delivery_date?h(u.delivery_date):"Pending"}</small>
+                            <div class="fw-medium">${p(I(u))}</div>
+                            <small class="text-muted">${u.delivery_date?$(u.delivery_date):"Pending"}</small>
                           </div>
                         </div>
                       </div>
@@ -679,11 +679,11 @@
                         <div class="d-flex justify-content-between align-items-center">
                           <div>
                             <span class="fw-medium">${u.payment_reference}</span>
-                            <span class="status-badge ${u.status} ms-2">${b(u.status)}</span>
+                            <span class="status-badge ${u.status} ms-2">${w(u.status)}</span>
                           </div>
                           <div class="text-end">
                             <div class="fw-bold">${p(u.amount_paid||0)} / ${p(u.amount)}</div>
-                            <small class="text-muted">${u.payment_date?h(u.payment_date):"Pending"}</small>
+                            <small class="text-muted">${u.payment_date?$(u.payment_date):"Pending"}</small>
                           </div>
                         </div>
                       </div>
@@ -720,12 +720,12 @@
 
                 <h6 class="mt-4 mb-3">Order Lines</h6>
                 <div id="poLines">
-                  ${(c=a==null?void 0:a.lines)!=null&&c.length?a.lines.map((u,C)=>Q(u,C)).join(""):Q(null,0)}
+                  ${(c=a==null?void 0:a.lines)!=null&&c.length?a.lines.map((u,M)=>W(u,M)).join(""):W(null,0)}
                 </div>
                 <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
                   <div>
                     <div class="text-muted small">Total Surface</div>
-                    <div id="poLinesSurfaceTotal" class="fw-semibold">${a?S(yt(a)):"-"} </div>
+                    <div id="poLinesSurfaceTotal" class="fw-semibold">${a?O(ut(a)):"-"} </div>
                   </div>
                   <div>
                     <div class="text-muted small">Total Commande HT</div>
@@ -750,12 +750,12 @@
                 </button>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                   <select class="form-select form-select-sm" id="poStatusSelect" style="width: auto;">
-                    ${["draft","pending","approved","in-production","completed","completed-partial","cancelled"].map(u=>`<option value="${u}" ${a.status===u?"selected":""}>${b(u)}</option>`).join("")}
+                    ${["draft","pending","approved","in-production","completed","completed-partial","cancelled"].map(u=>`<option value="${u}" ${a.status===u?"selected":""}>${w(u)}</option>`).join("")}
                   </select>
                   <button type="button" class="btn btn-primary" onclick="updatePOStatus('${a.id}')">
                     <i class="fas fa-save me-1"></i>Update Status
                   </button>
-                  ${$(a).hasPartial&&!["completed","completed-partial","cancelled"].includes(a.status)?`
+                  ${_(a).hasPartial&&!["completed","completed-partial","cancelled"].includes(a.status)?`
                       <button type="button" class="btn btn-outline-warning" onclick="closePOPartial('${a.id}')">
                         <i class="fas fa-flag-checkered me-1"></i>Close PO (Partial)
                       </button>
@@ -771,14 +771,14 @@
         </div>
       </div>
     </div>
-  `;(m=document.getElementById("poModal"))==null||m.remove(),document.body.insertAdjacentHTML("beforeend",d),Y=a&&s?((y=a.lines)==null?void 0:y.length)||0:1,new bootstrap.Modal(document.getElementById("poModal")).show(),F(),document.getElementById("poModal").addEventListener("hidden.bs.modal",function(){this.remove()}),window.savePO=wt,window.addPOLine=pt,window.updatePOLineTotal=vt,window.viewPOLineProduct=ft,window.removePOLine=ht,window.printPO=$t,window.updatePOStatus=_t,window.editPO=u=>ae(u,{editMode:!0}),window.navigateToProductsAndShow=T,window.closePOPartial=ee,window.navigateToDeliveriesAndShow=u=>{bootstrap.Modal.getInstance(document.getElementById("poModal")).hide(),_("deliveries"),setTimeout(()=>N(u),200)}}function Q(e,t){const a=(e==null?void 0:e.product_id)||"",s=l.data.products.find(r=>r.id===a),i=(e==null?void 0:e.quantity)||1,n=(e==null?void 0:e.unit_price_ht)!=null?e.unit_price_ht.toFixed(3):((s==null?void 0:s.price_ht)||"").toString(),o=(e==null?void 0:e.surface_mm2)!=null?S(e.surface_mm2):"",d=e?(e.line_total_ht||e.quantity*e.unit_price_ht).toFixed(3):"";return`
+  `;(m=document.getElementById("poModal"))==null||m.remove(),document.body.insertAdjacentHTML("beforeend",l),z=a&&s?((y=a.lines)==null?void 0:y.length)||0:1,new bootstrap.Modal(document.getElementById("poModal")).show(),F(),document.getElementById("poModal").addEventListener("hidden.bs.modal",function(){this.remove()}),window.savePO=ft,window.addPOLine=lt,window.updatePOLineTotal=rt,window.viewPOLineProduct=ct,window.removePOLine=vt,window.printPO=yt,window.updatePOStatus=gt,window.editPO=u=>te(u,{editMode:!0}),window.navigateToProductsAndShow=C,window.closePOPartial=Z,window.navigateToDeliveriesAndShow=u=>{bootstrap.Modal.getInstance(document.getElementById("poModal")).hide(),x("deliveries"),setTimeout(()=>R(u),200)}}function W(e,t){const a=(e==null?void 0:e.product_id)||"",s=d.data.products.find(r=>r.id===a),i=(e==null?void 0:e.quantity)||1,n=(e==null?void 0:e.unit_price_ht)!=null?e.unit_price_ht.toFixed(3):((s==null?void 0:s.price_ht)||"").toString(),o=(e==null?void 0:e.surface_mm2)!=null?O(e.surface_mm2):"",l=e?(e.line_total_ht||e.quantity*e.unit_price_ht).toFixed(3):"";return`
     <div class="row g-2 mb-2 align-items-end po-line" data-index="${t}">
       <div class="col-md-4">
         <label class="form-label small mb-1">Product</label>
         <div class="input-group">
           <select class="form-select" id="poProduct${t}" onchange="updatePOLineTotal(${t})" required>
             <option value="">Select Product</option>
-            ${l.data.products.map(r=>`
+            ${d.data.products.map(r=>`
               <option value="${r.id}" data-price="${r.price_ht}" data-surface="${r.surface_mm2||0}" ${r.id===a?"selected":""}>
                 ${r.name} (${r.reference})
               </option>
@@ -803,7 +803,7 @@
       </div>
       <div class="col-md-2">
         <label class="form-label small mb-1">Total HT</label>
-        <input type="text" class="form-control" id="poLineTotal${t}" placeholder="Total" readonly value="${d}">
+        <input type="text" class="form-control" id="poLineTotal${t}" placeholder="Total" readonly value="${l}">
       </div>
       <div class="col-md-1">
         <label class="form-label small mb-1">&nbsp;</label>
@@ -812,7 +812,7 @@
         </button>
       </div>
     </div>
-  `}let Y=1;function pt(){document.getElementById("poLines").insertAdjacentHTML("beforeend",Q(null,Y)),Y++,F()}function vt(e){const t=document.getElementById(`poProduct${e}`),a=document.getElementById(`poQty${e}`),s=document.getElementById(`poUnitPrice${e}`),i=document.getElementById(`poSurface${e}`),n=document.getElementById(`poLineTotal${e}`),o=document.getElementById(`poViewProduct${e}`);if(t&&t.value){const d=t.options[t.selectedIndex],r=parseFloat(d.dataset.price)||0,c=parseFloat(d.dataset.surface)||0,m=parseInt(a.value)||0;s.value=r.toFixed(3),i.value=c>0?S(c):"-",n.value=(r*m).toFixed(3),o&&(o.disabled=!1)}else s&&(s.value=""),i&&(i.value=""),n&&(n.value=""),o&&(o.disabled=!0);F()}function ft(e){var a;const t=(a=document.getElementById(`poProduct${e}`))==null?void 0:a.value;if(t){const s=bootstrap.Modal.getInstance(document.getElementById("poModal"));s&&s.hide(),T(t)}}function yt(e){return(e.lines||[]).reduce((t,a)=>{const s=parseFloat(a.surface_mm2)||0,i=parseInt(a.quantity)||0;return t+s*i},0)}function gt(){const e=document.querySelectorAll(".po-line");let t=0;return e.forEach(a=>{const s=document.getElementById(`poProduct${a.dataset.index}`),i=document.getElementById(`poQty${a.dataset.index}`);document.getElementById(`poSurface${a.dataset.index}`);const n=parseInt(i==null?void 0:i.value)||0,o=s!=null&&s.value&&parseFloat(s.options[s.selectedIndex].dataset.surface)||0;t+=o*n}),t}function bt(){const e=document.querySelectorAll(".po-line");let t=0;return e.forEach(a=>{const s=document.getElementById(`poLineTotal${a.dataset.index}`),i=parseFloat(s==null?void 0:s.value)||0;t+=i}),t}function F(){const e=document.getElementById("poLinesSurfaceTotal"),t=document.getElementById("poLinesHTTotal");e&&(e.textContent=S(gt())),t&&(t.textContent=p(bt(),3))}function ht(e){const t=document.querySelector(`.po-line[data-index="${e}"]`);t&&(t.remove(),F())}async function wt(){var o;if(!g())return;const e=[];if(document.querySelectorAll(".po-line").forEach(d=>{var u;const r=d.dataset.index,c=document.getElementById(`poProduct${r}`),m=document.getElementById(`poQty${r}`),y=document.getElementById(`poUnitPrice${r}`);if(c.value&&m.value){const C=l.data.products.find(Ee=>Ee.id===c.value),H=document.getElementById(`poSurface${r}`),Ie=C.surface_mm2||parseFloat(((u=H==null?void 0:H.dataset)==null?void 0:u.raw)||0)||0;e.push({product_id:c.value,product_name:C.name,quantity:parseInt(m.value),unit_price_ht:parseFloat(y.value),surface_mm2:Ie,line_total_ht:parseFloat(y.value)*parseInt(m.value),received_qty:0})}}),e.length===0){v("Please add at least one product line","warning");return}const a=(o=document.getElementById("poId"))==null?void 0:o.value,s=a?l.data.purchaseOrders.find(d=>d.id===a):null,i=e.reduce((d,r)=>d+r.line_total_ht,0),n=s?{...s,date:document.getElementById("poDate").value,supplier_reference:document.getElementById("poRef").value,expected_delivery_date:document.getElementById("poDeliveryDate").value,actual_delivery_date:s.actual_delivery_date,lines:e.map(d=>{var r;return{...d,received_qty:Math.min(((r=s.lines.find(c=>c.product_id===d.product_id))==null?void 0:r.received_qty)||0,d.quantity)}}),total_ht:i,total_ttc:i,notes:document.getElementById("poNotes").value,updated_at:new Date().toISOString()}:{id:k("PO","purchaseOrder"),po_number:qe(),date:document.getElementById("poDate").value,status:"draft",supplier_reference:document.getElementById("poRef").value,expected_delivery_date:document.getElementById("poDeliveryDate").value,actual_delivery_date:null,lines:e,total_ht:i,total_ttc:i,notes:document.getElementById("poNotes").value,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};if(await A(n),s){const d=l.data.purchaseOrders.findIndex(r=>r.id===s.id);d!==-1&&(l.data.purchaseOrders[d]=n)}else l.data.purchaseOrders.push(n);bootstrap.Modal.getInstance(document.getElementById("poModal")).hide(),w("purchase-orders"),v(s?"Purchase Order updated successfully":"Purchase Order created successfully","success")}function $t(e){const t=l.data.purchaseOrders.find(s=>s.id===e);if(!t)return;const a=window.open("","_blank");a.document.write(`
+  `}let z=1;function lt(){document.getElementById("poLines").insertAdjacentHTML("beforeend",W(null,z)),z++,F()}function rt(e){const t=document.getElementById(`poProduct${e}`),a=document.getElementById(`poQty${e}`),s=document.getElementById(`poUnitPrice${e}`),i=document.getElementById(`poSurface${e}`),n=document.getElementById(`poLineTotal${e}`),o=document.getElementById(`poViewProduct${e}`);if(t&&t.value){const l=t.options[t.selectedIndex],r=parseFloat(l.dataset.price)||0,c=parseFloat(l.dataset.surface)||0,m=parseInt(a.value)||0;s.value=r.toFixed(3),i.value=c>0?O(c):"-",n.value=(r*m).toFixed(3),o&&(o.disabled=!1)}else s&&(s.value=""),i&&(i.value=""),n&&(n.value=""),o&&(o.disabled=!0);F()}function ct(e){var a;const t=(a=document.getElementById(`poProduct${e}`))==null?void 0:a.value;if(t){const s=bootstrap.Modal.getInstance(document.getElementById("poModal"));s&&s.hide(),C(t)}}function ut(e){return(e.lines||[]).reduce((t,a)=>{const s=parseFloat(a.surface_mm2)||0,i=parseInt(a.quantity)||0;return t+s*i},0)}function mt(){const e=document.querySelectorAll(".po-line");let t=0;return e.forEach(a=>{const s=document.getElementById(`poProduct${a.dataset.index}`),i=document.getElementById(`poQty${a.dataset.index}`);document.getElementById(`poSurface${a.dataset.index}`);const n=parseInt(i==null?void 0:i.value)||0,o=s!=null&&s.value&&parseFloat(s.options[s.selectedIndex].dataset.surface)||0;t+=o*n}),t}function pt(){const e=document.querySelectorAll(".po-line");let t=0;return e.forEach(a=>{const s=document.getElementById(`poLineTotal${a.dataset.index}`),i=parseFloat(s==null?void 0:s.value)||0;t+=i}),t}function F(){const e=document.getElementById("poLinesSurfaceTotal"),t=document.getElementById("poLinesHTTotal");e&&(e.textContent=O(mt())),t&&(t.textContent=p(pt(),3))}function vt(e){const t=document.querySelector(`.po-line[data-index="${e}"]`);t&&(t.remove(),F())}async function ft(){var o;if(!g())return;const e=[];if(document.querySelectorAll(".po-line").forEach(l=>{var u;const r=l.dataset.index,c=document.getElementById(`poProduct${r}`),m=document.getElementById(`poQty${r}`),y=document.getElementById(`poUnitPrice${r}`);if(c.value&&m.value){const M=d.data.products.find(_e=>_e.id===c.value),H=document.getElementById(`poSurface${r}`),Pe=M.surface_mm2||parseFloat(((u=H==null?void 0:H.dataset)==null?void 0:u.raw)||0)||0;e.push({product_id:c.value,product_name:M.name,quantity:parseInt(m.value),unit_price_ht:parseFloat(y.value),surface_mm2:Pe,line_total_ht:parseFloat(y.value)*parseInt(m.value),received_qty:0})}}),e.length===0){v("Please add at least one product line","warning");return}const a=(o=document.getElementById("poId"))==null?void 0:o.value,s=a?d.data.purchaseOrders.find(l=>l.id===a):null,i=e.reduce((l,r)=>l+r.line_total_ht,0),n=s?{...s,date:document.getElementById("poDate").value,supplier_reference:document.getElementById("poRef").value,expected_delivery_date:document.getElementById("poDeliveryDate").value,actual_delivery_date:s.actual_delivery_date,lines:e.map(l=>{var r;return{...l,received_qty:Math.min(((r=s.lines.find(c=>c.product_id===l.product_id))==null?void 0:r.received_qty)||0,l.quantity)}}),total_ht:i,total_ttc:i,notes:document.getElementById("poNotes").value,updated_at:new Date().toISOString()}:{id:L("PO","purchaseOrder"),po_number:Fe(),date:document.getElementById("poDate").value,status:"draft",supplier_reference:document.getElementById("poRef").value,expected_delivery_date:document.getElementById("poDeliveryDate").value,actual_delivery_date:null,lines:e,total_ht:i,total_ttc:i,notes:document.getElementById("poNotes").value,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};if(await A(n),s){const l=d.data.purchaseOrders.findIndex(r=>r.id===s.id);l!==-1&&(d.data.purchaseOrders[l]=n)}else d.data.purchaseOrders.push(n);bootstrap.Modal.getInstance(document.getElementById("poModal")).hide(),P("purchase-orders"),v(s?"Purchase Order updated successfully":"Purchase Order created successfully","success")}function yt(e){const t=d.data.purchaseOrders.find(s=>s.id===e);if(!t)return;const a=window.open("","_blank");a.document.write(`
     <!DOCTYPE html>
     <html>
     <head>
@@ -833,13 +833,13 @@
       <div class="header">
         <div>
           <img src="/logo-wave-vi.png" alt="WAVE VI" style="width: 90px; height: auto; margin-bottom: 12px; display: block;" />
-          <div class="company-name">${l.data.settings.companyName}</div>
+          <div class="company-name">${d.data.settings.companyName}</div>
           <div>Supplier: SGS Printing Services</div>
         </div>
         <div class="po-info">
           <h1>PURCHASE ORDER</h1>
           <div><strong>${t.po_number}</strong></div>
-          <div>Date: ${h(t.date)}</div>
+          <div>Date: ${$(t.date)}</div>
         </div>
       </div>
 
@@ -870,9 +870,9 @@
       ${t.notes?`<p style="margin-top: 30px;"><strong>Notes:</strong> ${t.notes}</p>`:""}
     </body>
     </html>
-  `),a.document.close(),a.print()}async function _t(e){var s;if(!g())return;const t=l.data.purchaseOrders.find(i=>i.id===e);if(!t)return;const a=(s=document.getElementById("poStatusSelect"))==null?void 0:s.value;if(!a||a===t.status){v("Please select a different status","warning");return}if(a==="completed-partial"){await ee(e);return}if(a==="completed"&&!$(t).isComplete){v("PO is not fully received. Use Close PO (Partial) or receive remaining qty.","warning");return}if(t.status=a,t.updated_at=new Date().toISOString(),a==="in-production"){const i=be(t);i&&(l.data.deliveries.some(o=>o.id===i.id)||(await O(i),l.data.deliveries.push(i),v(`Delivery ${i.delivery_number} created`,"info")))}a==="completed"&&(t.actual_delivery_date=t.actual_delivery_date||new Date().toISOString().split("T")[0]),await A(t),q(),bootstrap.Modal.getInstance(document.getElementById("poModal")).hide(),w("purchase-orders"),v(`PO status updated to ${b(t.status)}`,"success")}function Pt(){const e=[["PO Number","Date","Status","Amount HT","Delivery Date"].join(","),...l.data.purchaseOrders.map(t=>[t.po_number,t.date,t.status,t.total_ht,t.actual_delivery_date||t.expected_delivery_date||""].join(","))].join(`
-`);Wt(e,"purchase-orders.csv")}function xt(e){const t=l.data.deliveries,a=t.filter(o=>f(o.status)==="pending").length,s=t.filter(o=>f(o.status)==="partial").length,i=t.filter(o=>f(o.status)==="delivered").length,n=t.filter(o=>["partial","delivered"].includes(f(o.status))).reduce((o,d)=>o+P(d),0);e.innerHTML=`
-    ${L()}
+  `),a.document.close(),a.print()}async function gt(e){var s;if(!g())return;const t=d.data.purchaseOrders.find(i=>i.id===e);if(!t)return;const a=(s=document.getElementById("poStatusSelect"))==null?void 0:s.value;if(!a||a===t.status){v("Please select a different status","warning");return}if(a==="completed-partial"){await Z(e);return}if(a==="completed"&&!_(t).isComplete){v("PO is not fully received. Use Close PO (Partial) or receive remaining qty.","warning");return}if(t.status=a,t.updated_at=new Date().toISOString(),a==="in-production"){const i=fe(t);i&&(d.data.deliveries.some(o=>o.id===i.id)||(await B(i),d.data.deliveries.push(i),v(`Delivery ${i.delivery_number} created`,"info")))}a==="completed"&&(t.actual_delivery_date=t.actual_delivery_date||new Date().toISOString().split("T")[0]),await A(t),q(),bootstrap.Modal.getInstance(document.getElementById("poModal")).hide(),P("purchase-orders"),v(`PO status updated to ${w(t.status)}`,"success")}function bt(){const e=[["PO Number","Date","Status","Amount HT","Delivery Date"].join(","),...d.data.purchaseOrders.map(t=>[t.po_number,t.date,t.status,t.total_ht,t.actual_delivery_date||t.expected_delivery_date||""].join(","))].join(`
+`);Ht(e,"purchase-orders.csv")}function ht(e){const t=d.data.deliveries,a=t.filter(o=>f(o.status)==="pending").length,s=t.filter(o=>f(o.status)==="partial").length,i=t.filter(o=>f(o.status)==="delivered").length,n=t.filter(o=>["partial","delivered"].includes(f(o.status))).reduce((o,l)=>o+I(l),0);e.innerHTML=`
+    ${T()}
     <div class="page-header">
       <div class="page-header-left">
         <h1 class="page-title"><i class="fa-solid fa-truck me-2 text-primary-brand"></i>Deliveries</h1>
@@ -923,11 +923,11 @@
     </div>
 
     <div class="row g-3" id="deliveriesList">
-      ${t.length?t.map(o=>Pe(o)).join(""):`
+      ${t.length?t.map(o=>he(o)).join(""):`
         <div class="col-12"><div class="empty-state"><i class="fa-solid fa-truck"></i><p>No deliveries yet</p></div></div>
       `}
     </div>
-  `,window.filterDeliveries=St,window.showDeliveryModal=N}function Pe(e){const t=f(e.status),a=l.data.payments.find(o=>o.related_delivery===e.id),s=e.lines.reduce((o,d)=>o+(d.remaining_qty??d.ordered_qty),0),i=e.lines.reduce((o,d)=>o+(d.delivered_qty||d.receive_qty||0),0),n=s>0?Math.round(i/s*100):t!=="pending"?100:0;return`
+  `,window.filterDeliveries=wt,window.showDeliveryModal=R}function he(e){const t=f(e.status),a=d.data.payments.find(o=>o.related_delivery===e.id),s=e.lines.reduce((o,l)=>o+(l.remaining_qty??l.ordered_qty),0),i=e.lines.reduce((o,l)=>o+(l.delivered_qty||l.receive_qty||0),0),n=s>0?Math.round(i/s*100):t!=="pending"?100:0;return`
     <div class="col-md-6 col-xl-4">
       <div class="card delivery-card h-100" data-status="${t}">
         <div class="card-header d-flex justify-content-between align-items-center py-3">
@@ -935,20 +935,20 @@
             <h6 class="mb-0">${e.delivery_number}</h6>
             <small class="text-muted">${e.po_number}</small>
           </div>
-          <span class="status-badge ${t}">${b(t)}</span>
+          <span class="status-badge ${t}">${w(t)}</span>
         </div>
         <div class="card-body">
           <div class="d-flex justify-content-between mb-3">
             <div>
               <small class="text-muted d-block">Amount</small>
-              <span class="fw-bold text-primary-brand">${p(P(e))}</span>
+              <span class="fw-bold text-primary-brand">${p(I(e))}</span>
             </div>
             <div class="text-end">
               <small class="text-muted d-block">Date</small>
-              <span>${e.delivery_date?h(e.delivery_date):"—"}</span>
+              <span>${e.delivery_date?$(e.delivery_date):"—"}</span>
             </div>
           </div>
-          ${t==="pending"?X(n,"Qty to receive"):`
+          ${t==="pending"?K(n,"Qty to receive"):`
             <div class="small text-muted">${i} pcs confirmed in this delivery</div>
           `}
           ${a?`
@@ -965,7 +965,7 @@
         </div>
       </div>
     </div>
-  `}function St(){var s;const e=((s=document.getElementById("deliveryStatusFilter"))==null?void 0:s.value)||"";let t=l.data.deliveries;e&&(t=t.filter(i=>f(i.status)===e));const a=document.getElementById("deliveriesList");a&&(a.innerHTML=t.map(i=>Pe(i)).join(""))}function N(e){var c;const t=l.data.deliveries.find(m=>m.id===e);if(!t)return;const a=f(t.status),s=l.data.payments.find(m=>m.related_delivery===t.id),i=g()&&a==="pending",n=l.data.purchaseOrders.find(m=>m.id===t.related_po),o=n?$(n):null,d=`
+  `}function wt(){var s;const e=((s=document.getElementById("deliveryStatusFilter"))==null?void 0:s.value)||"";let t=d.data.deliveries;e&&(t=t.filter(i=>f(i.status)===e));const a=document.getElementById("deliveriesList");a&&(a.innerHTML=t.map(i=>he(i)).join(""))}function R(e){var c;const t=d.data.deliveries.find(m=>m.id===e);if(!t)return;const a=f(t.status),s=d.data.payments.find(m=>m.related_delivery===t.id),i=g()&&a==="pending",n=d.data.purchaseOrders.find(m=>m.id===t.related_po),o=n?_(n):null,l=`
     <div class="modal fade" id="deliveryModal" tabindex="-1">
       <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
@@ -978,7 +978,7 @@
               <div class="col-md-4">
                 <div class="info-tile">
                   <small>Status</small>
-                  <div><span class="status-badge ${a}">${b(a)}</span></div>
+                  <div><span class="status-badge ${a}">${w(a)}</span></div>
                 </div>
               </div>
               <div class="col-md-4">
@@ -990,7 +990,7 @@
               <div class="col-md-4">
                 <div class="info-tile">
                   <small>${i?"Preview Amount":"Confirmed Amount"}</small>
-                  <div class="fw-bold text-primary-brand" id="deliveryPreviewTotal_${t.id}">${p(P(t))}</div>
+                  <div class="fw-bold text-primary-brand" id="deliveryPreviewTotal_${t.id}">${p(I(t))}</div>
                 </div>
               </div>
             </div>
@@ -998,7 +998,7 @@
             ${o?`
               <div class="card mb-4">
                 <div class="card-body py-3">
-                  ${X(o.pct,"PO fulfillment")}
+                  ${K(o.pct,"PO fulfillment")}
                   <div class="small text-muted mt-2">${o.totalReceived} / ${o.totalOrdered} pcs received on PO</div>
                 </div>
               </div>
@@ -1014,7 +1014,7 @@
                 <i class="fa-solid fa-credit-card me-2"></i>
                 Payment <strong>${s.payment_reference}</strong> —
                 ${p(s.amount_paid||0)} / ${p(s.amount)}
-                <span class="status-badge ${s.status} ms-2">${b(s.status)}</span>
+                <span class="status-badge ${s.status} ms-2">${w(s.status)}</span>
               </div>
             `:""}
 
@@ -1046,7 +1046,7 @@
                           `:m.delivered_qty||0}
                         </td>
                         <td>${p(m.unit_price_ht)}</td>
-                        <td id="lineAmount_${t.id}_${y}">${p(z(m))}</td>
+                        <td id="lineAmount_${t.id}_${y}">${p(G(m))}</td>
                       </tr>
                     `).join("")}
                   </tbody>
@@ -1071,8 +1071,8 @@
         </div>
       </div>
     </div>
-  `;(c=document.getElementById("deliveryModal"))==null||c.remove(),document.body.insertAdjacentHTML("beforeend",d),new bootstrap.Modal(document.getElementById("deliveryModal")).show(),i&&le(t.id),document.getElementById("deliveryModal").addEventListener("hidden.bs.modal",function(){this.remove()}),window.confirmDelivery=It,window.cancelDelivery=Et,window.updateDeliveryPreviewAmount=le,window.closePOPartial=ee,window.navigateToProductsAndShow=m=>{var y;(y=bootstrap.Modal.getInstance(document.getElementById("deliveryModal")))==null||y.hide(),_("products"),setTimeout(()=>T(m),200)}}async function It(e){if(!g())return;const t=l.data.deliveries.find(n=>n.id===e);if(!t||f(t.status)!=="pending")return;const a=l.data.purchaseOrders.find(n=>n.id===t.related_po);if(!a)return;let s=0;for(let n=0;n<t.lines.length;n++){const o=t.lines[n],d=document.getElementById(`receiveQty_${e}_${n}`),r=parseInt(d==null?void 0:d.value)||0,c=o.remaining_qty??o.ordered_qty;if(r<0||r>c){v(`Invalid quantity for ${o.product_name} (max ${c})`,"warning");return}o.receive_qty=r,o.delivered_qty=r,o.line_total=r*(o.unit_price_ht||0),s+=r;const m=a.lines.find(y=>y.product_id===o.product_id);m&&r>0&&(m.received_qty=(m.received_qty||0)+r)}if(s===0){v("Enter at least one received quantity","warning");return}t.amount=P(t),t.delivery_date=new Date().toISOString().split("T")[0],t.updated_at=new Date().toISOString();const i=$(a);if(t.status=i.isComplete?"delivered":"partial",await O(t),await Ze(t),i.isComplete&&(a.status="completed",a.actual_delivery_date=t.delivery_date),a.updated_at=new Date().toISOString(),await A(a),!i.isComplete&&!["completed-partial","cancelled"].includes(a.status)){const n=be(a);n&&(await O(n),l.data.deliveries.push(n))}q(),bootstrap.Modal.getInstance(document.getElementById("deliveryModal")).hide(),w("deliveries"),v(`Received ${s} pcs — payment created for ${p(t.amount)}`,"success")}async function Et(e){if(!g()||!confirm("Cancel this delivery?"))return;const t=l.data.deliveries.find(a=>a.id===e);t&&(t.status="cancelled",t.updated_at=new Date().toISOString(),await O(t),bootstrap.Modal.getInstance(document.getElementById("deliveryModal")).hide(),w("deliveries"),v("Delivery cancelled","info"))}function Dt(e){const t=l.data.payments,a=Ot(),s=a.totalInvoiced>0?Math.round(a.totalPaid/a.totalInvoiced*100):0;e.innerHTML=`
-    ${L()}
+  `;(c=document.getElementById("deliveryModal"))==null||c.remove(),document.body.insertAdjacentHTML("beforeend",l),new bootstrap.Modal(document.getElementById("deliveryModal")).show(),i&&oe(t.id),document.getElementById("deliveryModal").addEventListener("hidden.bs.modal",function(){this.remove()}),window.confirmDelivery=$t,window.cancelDelivery=Pt,window.updateDeliveryPreviewAmount=oe,window.closePOPartial=Z,window.navigateToProductsAndShow=m=>{var y;(y=bootstrap.Modal.getInstance(document.getElementById("deliveryModal")))==null||y.hide(),x("products"),setTimeout(()=>C(m),200)}}async function $t(e){if(!g())return;const t=d.data.deliveries.find(n=>n.id===e);if(!t||f(t.status)!=="pending")return;const a=d.data.purchaseOrders.find(n=>n.id===t.related_po);if(!a)return;let s=0;for(let n=0;n<t.lines.length;n++){const o=t.lines[n],l=document.getElementById(`receiveQty_${e}_${n}`),r=parseInt(l==null?void 0:l.value)||0,c=o.remaining_qty??o.ordered_qty;if(r<0||r>c){v(`Invalid quantity for ${o.product_name} (max ${c})`,"warning");return}o.receive_qty=r,o.delivered_qty=r,o.line_total=r*(o.unit_price_ht||0),s+=r;const m=a.lines.find(y=>y.product_id===o.product_id);m&&r>0&&(m.received_qty=(m.received_qty||0)+r)}if(s===0){v("Enter at least one received quantity","warning");return}t.amount=I(t),t.delivery_date=new Date().toISOString().split("T")[0],t.updated_at=new Date().toISOString();const i=_(a);if(t.status=i.isComplete?"delivered":"partial",await B(t),await ze(t),i.isComplete&&(a.status="completed",a.actual_delivery_date=t.delivery_date),a.updated_at=new Date().toISOString(),await A(a),!i.isComplete&&!["completed-partial","cancelled"].includes(a.status)){const n=fe(a);n&&(await B(n),d.data.deliveries.push(n))}q(),bootstrap.Modal.getInstance(document.getElementById("deliveryModal")).hide(),P("deliveries"),v(`Received ${s} pcs — payment created for ${p(t.amount)}`,"success")}async function Pt(e){if(!g()||!confirm("Cancel this delivery?"))return;const t=d.data.deliveries.find(a=>a.id===e);t&&(t.status="cancelled",t.updated_at=new Date().toISOString(),await B(t),bootstrap.Modal.getInstance(document.getElementById("deliveryModal")).hide(),P("deliveries"),v("Delivery cancelled","info"))}function _t(e){const t=d.data.payments,a=xt(),s=a.totalInvoiced>0?Math.round(a.totalPaid/a.totalInvoiced*100):0;e.innerHTML=`
+    ${T()}
     <div class="page-header">
       <div class="page-header-left">
         <h1 class="page-title"><i class="fa-solid fa-credit-card me-2 text-primary-brand"></i>Payments</h1>
@@ -1138,21 +1138,21 @@
             </tr>
           </thead>
           <tbody id="paymentsTableBody">
-            ${t.length?t.map(i=>xe(i)).join(""):`
+            ${t.length?t.map(i=>we(i)).join(""):`
               <tr><td colspan="7" class="text-center text-muted py-4">No payments yet</td></tr>
             `}
           </tbody>
         </table>
       </div>
     </div>
-  `,window.filterPayments=Lt,window.showPaymentModal=kt,window.showDeliveryModal=N}function Ot(){const t=l.data.deliveries.filter(s=>["partial","delivered"].includes(f(s.status))).reduce((s,i)=>s+P(i),0),a=l.data.payments.reduce((s,i)=>s+(i.amount_paid||0),0);return{totalInvoiced:t,totalPaid:a,remaining:Math.max(0,t-a)}}function xe(e){return Z(e),`
+  `,window.filterPayments=Dt,window.showPaymentModal=St,window.showDeliveryModal=R}function xt(){const t=d.data.deliveries.filter(s=>["partial","delivered"].includes(f(s.status))).reduce((s,i)=>s+I(i),0),a=d.data.payments.reduce((s,i)=>s+(i.amount_paid||0),0);return{totalInvoiced:t,totalPaid:a,remaining:Math.max(0,t-a)}}function we(e){return Y(e),`
     <tr data-status="${e.status}" data-method="${e.payment_method}">
       <td class="fw-medium">${e.payment_reference}</td>
       <td>${e.delivery_number?`<a href="#" class="po-link" onclick="navigateTo('deliveries'); setTimeout(() => showDeliveryModal('${e.related_delivery}'), 200); return false;">${e.delivery_number}</a>`:"—"}</td>
       <td>${e.po_number}</td>
       <td>${p(e.amount)}</td>
       <td class="text-success fw-medium">${p(e.amount_paid||0)}</td>
-      <td><span class="status-badge ${e.status}">${b(e.status)}</span></td>
+      <td><span class="status-badge ${e.status}">${w(e.status)}</span></td>
       <td>
         ${g()&&e.status!=="paid"?`
           <button class="btn-action btn-action-view" title="Record payment" onclick="showPaymentModal('${e.id}')">
@@ -1161,7 +1161,7 @@
         `:'<span class="text-muted small">—</span>'}
       </td>
     </tr>
-  `}function kt(e){var i;if(!g())return;const t=l.data.payments.find(n=>n.id===e);if(!t||t.status==="paid")return;const a=Z(t),s=`
+  `}function St(e){var i;if(!g())return;const t=d.data.payments.find(n=>n.id===e);if(!t||t.status==="paid")return;const a=Y(t),s=`
     <div class="modal fade" id="paymentModal" tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1192,8 +1192,8 @@
         </div>
       </div>
     </div>
-  `;(i=document.getElementById("paymentModal"))==null||i.remove(),document.body.insertAdjacentHTML("beforeend",s),new bootstrap.Modal(document.getElementById("paymentModal")).show(),document.getElementById("paymentModal").addEventListener("hidden.bs.modal",function(){this.remove()}),window.recordPartialPayment=Bt}async function Bt(e){var i,n;if(!g())return;const t=l.data.payments.find(o=>o.id===e);if(!t)return;const a=Z(t),s=parseFloat((i=document.getElementById("payAmountInput"))==null?void 0:i.value)||0;if(s<=0||s>a+.001){v(`Enter an amount between 0.01 and ${p(a)}`,"warning");return}t.amount_paid=(t.amount_paid||0)+s,t.payment_date=new Date().toISOString().split("T")[0],t.updated_at=new Date().toISOString(),t.amount_paid>=t.amount-.001?(t.amount_paid=t.amount,t.status="paid"):t.status="partial",await ve(t),(n=bootstrap.Modal.getInstance(document.getElementById("paymentModal")))==null||n.hide(),w("payments"),v(`Payment recorded: ${p(s)}`,"success")}function Lt(){var i,n;const e=((i=document.getElementById("paymentStatusFilter"))==null?void 0:i.value)||"",t=((n=document.getElementById("paymentMethodFilter"))==null?void 0:n.value)||"";let a=l.data.payments;e&&(a=a.filter(o=>o.status===e)),t&&(a=a.filter(o=>o.payment_method===t));const s=document.getElementById("paymentsTableBody");s&&(s.innerHTML=a.map(o=>xe(o)).join(""))}function Tt(e){const t=l.data.documents;e.innerHTML=`
-    ${L()}
+  `;(i=document.getElementById("paymentModal"))==null||i.remove(),document.body.insertAdjacentHTML("beforeend",s),new bootstrap.Modal(document.getElementById("paymentModal")).show(),document.getElementById("paymentModal").addEventListener("hidden.bs.modal",function(){this.remove()}),window.recordPartialPayment=It}async function It(e){var i,n;if(!g())return;const t=d.data.payments.find(o=>o.id===e);if(!t)return;const a=Y(t),s=parseFloat((i=document.getElementById("payAmountInput"))==null?void 0:i.value)||0;if(s<=0||s>a+.001){v(`Enter an amount between 0.01 and ${p(a)}`,"warning");return}t.amount_paid=(t.amount_paid||0)+s,t.payment_date=new Date().toISOString().split("T")[0],t.updated_at=new Date().toISOString(),t.amount_paid>=t.amount-.001?(t.amount_paid=t.amount,t.status="paid"):t.status="partial",await le(t),(n=bootstrap.Modal.getInstance(document.getElementById("paymentModal")))==null||n.hide(),P("payments"),v(`Payment recorded: ${p(s)}`,"success")}function Dt(){var i,n;const e=((i=document.getElementById("paymentStatusFilter"))==null?void 0:i.value)||"",t=((n=document.getElementById("paymentMethodFilter"))==null?void 0:n.value)||"";let a=d.data.payments;e&&(a=a.filter(o=>o.status===e)),t&&(a=a.filter(o=>o.payment_method===t));const s=document.getElementById("paymentsTableBody");s&&(s.innerHTML=a.map(o=>we(o)).join(""))}function Et(e){const t=d.data.documents;e.innerHTML=`
+    ${T()}
     <div class="page-header">
       <h1 class="page-title">Document Center</h1>
       <p class="page-subtitle">${t.length} documents available</p>
@@ -1218,9 +1218,9 @@
 
     <!-- Documents Grid -->
     <div class="row g-4" id="documentsGrid">
-      ${t.map(a=>se(a)).join("")}
+      ${t.map(a=>ae(a)).join("")}
     </div>
-  `,window.filterDocumentsByCategory=At,window.searchDocuments=Rt,window.previewDocument=Ct,window.downloadDocument=Mt}function Ct(e){const t=l.data.documents.find(a=>a.id===e);t&&ie(t.data||t.url,t.name)}function Mt(e){const t=l.data.documents.find(a=>a.id===e);t&&j(t.data||t.url,t.name)}function se(e){const t={pdf:"fa-file-pdf text-danger",ai:"fa-file-image text-warning",eps:"fa-file-image text-info",psd:"fa-file-image text-primary",svg:"fa-file-image text-success"},a=e.category==="artwork-files"||e.category==="technical-files",s=a?"":`
+  `,window.filterDocumentsByCategory=Bt,window.searchDocuments=Lt,window.previewDocument=Ot,window.downloadDocument=kt}function Ot(e){const t=d.data.documents.find(a=>a.id===e);t&&se(t.data||t.url,t.name)}function kt(e){const t=d.data.documents.find(a=>a.id===e);t&&j(t.data||t.url,t.name)}function ae(e){const t={pdf:"fa-file-pdf text-danger",ai:"fa-file-image text-warning",eps:"fa-file-image text-info",psd:"fa-file-image text-primary",svg:"fa-file-image text-success"},a=e.category==="artwork-files"||e.category==="technical-files",s=a?"":`
     <button class="btn btn-outline-primary btn-sm flex-grow-1" onclick="previewDocument('${e.id}')">
       <i class="fas fa-eye me-1"></i>Preview
     </button>`;return`
@@ -1237,7 +1237,7 @@
             </div>
           </div>
           <div class="d-flex justify-content-between align-items-center">
-            <span class="badge bg-primary-light text-primary">${Gt(e.category)}</span>
+            <span class="badge bg-primary-light text-primary">${jt(e.category)}</span>
             <small class="text-muted">${e.created_at}</small>
           </div>
         </div>
@@ -1251,8 +1251,8 @@
         </div>
       </div>
     </div>
-  `}function At(e){const t=document.getElementById("documentsGrid");document.querySelectorAll(".filters-bar .btn").forEach(i=>{i.classList.remove("btn-primary"),i.classList.add("btn-outline-secondary")});let s=l.data.documents;e&&(s=s.filter(i=>i.category===e)),t.innerHTML=s.map(i=>se(i)).join("")}function Rt(){var s;const e=((s=document.getElementById("docSearch"))==null?void 0:s.value.toLowerCase())||"";let t=l.data.documents;e&&(t=t.filter(i=>i.name.toLowerCase().includes(e)));const a=document.getElementById("documentsGrid");a.innerHTML=t.map(i=>se(i)).join("")}function Ft(e){const t=l.data.settings;e.innerHTML=`
-    ${L()}
+  `}function Bt(e){const t=document.getElementById("documentsGrid");document.querySelectorAll(".filters-bar .btn").forEach(i=>{i.classList.remove("btn-primary"),i.classList.add("btn-outline-secondary")});let s=d.data.documents;e&&(s=s.filter(i=>i.category===e)),t.innerHTML=s.map(i=>ae(i)).join("")}function Lt(){var s;const e=((s=document.getElementById("docSearch"))==null?void 0:s.value.toLowerCase())||"";let t=d.data.documents;e&&(t=t.filter(i=>i.name.toLowerCase().includes(e)));const a=document.getElementById("documentsGrid");a.innerHTML=t.map(i=>ae(i)).join("")}function Tt(e){const t=d.data.settings;e.innerHTML=`
+    ${T()}
     <div class="page-header">
       <h1 class="page-title">Settings</h1>
       <p class="page-subtitle">Configure your supplier portal</p>
@@ -1306,13 +1306,13 @@
               <label class="form-label">Theme</label>
               <div class="d-flex gap-3">
                 <div class="form-check">
-                  <input class="form-check-input" type="radio" name="theme" id="themeLight" value="light" ${l.theme==="light"?"checked":""} onchange="toggleTheme()">
+                  <input class="form-check-input" type="radio" name="theme" id="themeLight" value="light" ${d.theme==="light"?"checked":""} onchange="toggleTheme()">
                   <label class="form-check-label" for="themeLight">
                     <i class="fas fa-sun text-warning me-1"></i>Light Mode
                   </label>
                 </div>
                 <div class="form-check">
-                  <input class="form-check-input" type="radio" name="theme" id="themeDark" value="dark" ${l.theme==="dark"?"checked":""} onchange="toggleTheme()">
+                  <input class="form-check-input" type="radio" name="theme" id="themeDark" value="dark" ${d.theme==="dark"?"checked":""} onchange="toggleTheme()">
                   <label class="form-check-label" for="themeDark">
                     <i class="fas fa-moon text-primary me-1"></i>Dark Mode
                   </label>
@@ -1338,43 +1338,53 @@
         </div>
       </div>
 
-      <!-- Backup & Restore -->
+      <!-- Data publishing -->
       <div class="col-md-6">
         <div class="card">
           <div class="card-header">
-            <h6 class="mb-0"><i class="fas fa-database me-2"></i>Backup & Restore</h6>
+            <h6 class="mb-0"><i class="fas fa-file-code me-2"></i>Publish Data (Admin)</h6>
           </div>
           <div class="card-body">
-            <p class="text-muted small">Export all portal data as JSON, or import a previous backup.</p>
+            <p class="text-muted small">
+              Changes made in the portal are kept in memory for this session only.
+              Download JSON files and commit them to <code>public/data/</code> to publish updates on GitHub Pages.
+            </p>
             <div class="d-flex flex-wrap gap-2">
-              <button type="button" class="btn btn-outline-primary" onclick="exportBackup()">
-                <i class="fas fa-download me-1"></i>Export Backup
+              <button type="button" class="btn btn-outline-primary" onclick="exportDataFiles()">
+                <i class="fas fa-download me-1"></i>Download JSON Files
+              </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="exportBackup()">
+                <i class="fas fa-file-archive me-1"></i>Combined Backup
               </button>
               <label class="btn btn-outline-secondary mb-0">
-                <i class="fas fa-upload me-1"></i>Import Backup
+                <i class="fas fa-upload me-1"></i>Import to Session
                 <input type="file" accept=".json,application/json" class="d-none" id="importBackupInput" onchange="importBackup(event)">
               </label>
             </div>
+            <p class="text-muted small mt-3 mb-0">
+              Migrating from IndexedDB?
+              <a href="./admin-export.html" target="_blank" rel="noopener">Open the export utility</a>.
+            </p>
           </div>
         </div>
       </div>
 
-      <!-- Reset Data -->
+      <!-- Reload -->
       <div class="col-md-6">
-        <div class="card border-danger">
-          <div class="card-header bg-danger-light">
-            <h6 class="mb-0 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Danger Zone</h6>
+        <div class="card">
+          <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-arrows-rotate me-2"></i>Reload Hosted Data</h6>
           </div>
           <div class="card-body">
-            <p class="text-muted small">Clear all stored data and start fresh. This action cannot be undone.</p>
-            <button class="btn btn-outline-danger" onclick="resetLocalData()">
-              <i class="fas fa-trash me-1"></i>Reset All Data
+            <p class="text-muted small">Discard in-memory edits and reload the JSON files served from the repository.</p>
+            <button class="btn btn-outline-secondary" onclick="reloadHostedData()">
+              <i class="fas fa-sync me-1"></i>Reload from JSON
             </button>
           </div>
         </div>
       </div>
     </div>
-  `,window.saveSettings=Nt,window.resetLocalData=Ht,window.exportBackup=qt,window.importBackup=jt}async function Nt(){g()&&(l.data.settings={companyName:document.getElementById("companyName").value,supplierName:document.getElementById("supplierName").value,currency:document.getElementById("currency").value,defaultVat:parseInt(document.getElementById("defaultVat").value)||20,theme:l.theme},await M(l.data.settings),v("Settings saved successfully","success"))}async function qt(){try{const e=await Re(),t=new Date().toISOString().split("T")[0];Ve(e,`wave-vi-backup-${t}.json`),v("Backup exported successfully","success")}catch(e){console.error("Export failed:",e),v("Failed to export backup","danger")}}async function jt(e){var a;const t=(a=e.target.files)==null?void 0:a[0];if(t){try{const s=await t.text();if(!confirm("Importing will replace all current data. Continue?")){e.target.value="";return}await Fe(s),await te(),he(),w(l.currentPage),v("Backup imported successfully","success")}catch(s){console.error("Import failed:",s),v("Invalid backup file","danger")}e.target.value=""}}async function Ht(){confirm("Are you sure you want to reset all stored data? This cannot be undone.")&&(await fe(),Ue(),v("Data reset. Reloading...","success"),setTimeout(()=>location.reload(),1e3))}function q(){const e=document.getElementById("notificationBadge"),t=document.getElementById("notificationsList");if(!e||!t)return;const a=[];l.data.purchaseOrders.filter(s=>s.status==="pending"||s.status==="draft").slice(0,3).forEach(s=>{a.push({icon:"fa-file-invoice",iconClass:"bg-info-soft text-info",text:`PO ${s.po_number} — ${b(s.status)}`,time:h(s.created_at)})}),l.data.deliveries.filter(s=>f(s.status)==="pending").slice(0,2).forEach(s=>{a.push({icon:"fa-truck",iconClass:"bg-warning-soft text-warning",text:`Delivery ${s.delivery_number} awaiting confirmation`,time:"Pending"})}),l.data.payments.filter(s=>s.status==="pending").slice(0,2).forEach(s=>{a.push({icon:"fa-credit-card",iconClass:"bg-success-soft text-success",text:`Payment ${s.payment_reference} — ${p(s.amount)}`,time:s.payment_date?h(s.payment_date):"Pending"})}),e.style.display=a.length>0?"":"none",a.length===0?t.innerHTML='<div class="notif-item"><div class="notif-content"><p class="text-muted mb-0">No notifications</p></div></div>':t.innerHTML=a.map(s=>`
+  `,window.saveSettings=Ct,window.exportBackup=At,window.exportDataFiles=Mt,window.importBackup=Nt,window.reloadHostedData=Ft}async function Ct(){g()&&(d.data.settings={companyName:document.getElementById("companyName").value,supplierName:document.getElementById("supplierName").value,currency:document.getElementById("currency").value,defaultVat:parseInt(document.getElementById("defaultVat").value)||20,theme:d.theme},await re(d.data.settings),v("Settings saved successfully","success"))}function Mt(){try{Re(),v("JSON files downloaded — commit them to public/data/","success")}catch(e){console.error("Export failed:",e),v("Failed to export JSON files","danger")}}async function At(){try{const e=Ce(),t=new Date().toISOString().split("T")[0];me(e,`wave-vi-backup-${t}.json`),v("Combined backup exported successfully","success")}catch(e){console.error("Export failed:",e),v("Failed to export backup","danger")}}async function Nt(e){var a;const t=(a=e.target.files)==null?void 0:a[0];if(t){try{const s=await t.text();if(!confirm("Importing will replace in-memory data for this session. Continue?")){e.target.value="";return}const i=Ae(s);d.data.products=i.products,d.data.purchaseOrders=i.purchaseOrders,d.data.deliveries=i.deliveries,d.data.payments=i.payments,d.data.documents=i.documents,d.data.categories=i.categories,d.data.settings=i.settings,ee(),P(d.currentPage),v("Backup imported successfully","success")}catch(s){console.error("Import failed:",s),v("Invalid backup file","danger")}e.target.value=""}}async function Ft(){confirm("Reload data from hosted JSON files? Unsaved session changes will be lost.")&&(v("Reloading data...","info"),await X(),ee(),P(d.currentPage),v("Data reloaded from JSON files","success"))}function q(){const e=document.getElementById("notificationBadge"),t=document.getElementById("notificationsList");if(!e||!t)return;const a=[];d.data.purchaseOrders.filter(s=>s.status==="pending"||s.status==="draft").slice(0,3).forEach(s=>{a.push({icon:"fa-file-invoice",iconClass:"bg-info-soft text-info",text:`PO ${s.po_number} — ${w(s.status)}`,time:$(s.created_at)})}),d.data.deliveries.filter(s=>f(s.status)==="pending").slice(0,2).forEach(s=>{a.push({icon:"fa-truck",iconClass:"bg-warning-soft text-warning",text:`Delivery ${s.delivery_number} awaiting confirmation`,time:"Pending"})}),d.data.payments.filter(s=>s.status==="pending").slice(0,2).forEach(s=>{a.push({icon:"fa-credit-card",iconClass:"bg-success-soft text-success",text:`Payment ${s.payment_reference} — ${p(s.amount)}`,time:s.payment_date?$(s.payment_date):"Pending"})}),e.style.display=a.length>0?"":"none",a.length===0?t.innerHTML='<div class="notif-item"><div class="notif-content"><p class="text-muted mb-0">No notifications</p></div></div>':t.innerHTML=a.map(s=>`
       <div class="notif-item unread">
         <div class="notif-icon ${s.iconClass}"><i class="fa-solid ${s.icon}"></i></div>
         <div class="notif-content">
@@ -1382,12 +1392,12 @@
           <span>${s.time}</span>
         </div>
       </div>
-    `).join("")}function Ut(e){const t=["draft","pending","approved","in-production","completed"],a=t.indexOf(e);return t.map((s,i)=>{const n=i<=a;return`<div class="text-center" style="flex: 1;">
+    `).join("")}function Rt(e){const t=["draft","pending","approved","in-production","completed"],a=t.indexOf(e);return t.map((s,i)=>{const n=i<=a;return`<div class="text-center" style="flex: 1;">
       <div class="status-badge ${s===e?s:n?"completed":"draft"} mb-2" style="width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
         ${n?'<i class="fas fa-check"></i>':'<i class="fas fa-circle" style="font-size: 8px;"></i>'}
       </div>
-      <div><small>${b(s)}</small></div>
-    </div>`}).join("")}function p(e,t=2){const s=(l.data.settings||{}).currency||"TND",i=s==="TND"?"fr-TN":s==="EUR"?"fr-FR":"en-US";return new Intl.NumberFormat(i,{style:"currency",currency:s,minimumFractionDigits:t,maximumFractionDigits:t}).format(e||0)}function Se(e,t,a){const s=parseFloat(t)||0,i=parseFloat(a)||0;switch(e){case"circle":return Math.round(Math.PI*Math.pow(s/2,2)*100)/100;case"square":return Math.round(s*s*100)/100;case"rectangle":return Math.round(s*i*100)/100;default:return 0}}function S(e){return e?`${Number(e).toLocaleString("fr-FR")} mm²`:"-"}function G(e){return new Promise((t,a)=>{const s=new FileReader;s.onload=()=>t(s.result),s.onerror=a,s.readAsDataURL(e)})}function Vt(e){if(!e)return"-";const t=Math.round((e.length-5)*.75);return t<1024?`${t} B`:t<1048576?`${(t/1024).toFixed(1)} KB`:`${(t/1048576).toFixed(1)} MB`}function j(e,t){const a=document.createElement("a");a.href=e,a.download=t,a.click()}function ie(e,t){e.startsWith("data:image/")||e.startsWith("data:application/pdf")?window.open(e,"_blank"):j(e,t)}function h(e){if(!e)return"-";const t=new Date(e);return new Intl.DateTimeFormat("en-US",{day:"numeric",month:"short",year:"numeric"}).format(t)}function b(e){return e?e.split("-").map(t=>t.charAt(0).toUpperCase()+t.slice(1)).join(" "):"-"}function Gt(e){return e.split("-").map(t=>t.charAt(0).toUpperCase()+t.slice(1)).join(" ")}function v(e,t="info"){const a=document.getElementById("toastContainer");if(!a)return;const s="toast-"+Date.now(),i=`
+      <div><small>${w(s)}</small></div>
+    </div>`}).join("")}function p(e,t=2){const s=(d.data.settings||{}).currency||"TND",i=s==="TND"?"fr-TN":s==="EUR"?"fr-FR":"en-US";return new Intl.NumberFormat(i,{style:"currency",currency:s,minimumFractionDigits:t,maximumFractionDigits:t}).format(e||0)}function $e(e,t,a){const s=parseFloat(t)||0,i=parseFloat(a)||0;switch(e){case"circle":return Math.round(Math.PI*Math.pow(s/2,2)*100)/100;case"square":return Math.round(s*s*100)/100;case"rectangle":return Math.round(s*i*100)/100;default:return 0}}function O(e){return e?`${Number(e).toLocaleString("fr-FR")} mm²`:"-"}function V(e){return new Promise((t,a)=>{const s=new FileReader;s.onload=()=>t(s.result),s.onerror=a,s.readAsDataURL(e)})}function qt(e){if(!e)return"-";const t=Math.round((e.length-5)*.75);return t<1024?`${t} B`:t<1048576?`${(t/1024).toFixed(1)} KB`:`${(t/1048576).toFixed(1)} MB`}function j(e,t){const a=document.createElement("a");a.href=e,a.download=t,a.click()}function se(e,t){e.startsWith("data:image/")||e.startsWith("data:application/pdf")?window.open(e,"_blank"):j(e,t)}function $(e){if(!e)return"-";const t=new Date(e);return new Intl.DateTimeFormat("en-US",{day:"numeric",month:"short",year:"numeric"}).format(t)}function w(e){return e?e.split("-").map(t=>t.charAt(0).toUpperCase()+t.slice(1)).join(" "):"-"}function jt(e){return e.split("-").map(t=>t.charAt(0).toUpperCase()+t.slice(1)).join(" ")}function v(e,t="info"){const a=document.getElementById("toastContainer");if(!a)return;const s="toast-"+Date.now(),i=`
     <div id="${s}" class="toast" role="alert">
       <div class="toast-header">
         <i class="fas ${t==="success"?"fa-check-circle text-success":t==="danger"?"fa-times-circle text-danger":t==="warning"?"fa-exclamation-circle text-warning":"fa-info-circle text-primary"} me-2"></i>
@@ -1396,4 +1406,4 @@
       </div>
       <div class="toast-body">${e}</div>
     </div>
-  `;a.insertAdjacentHTML("beforeend",i);const n=document.getElementById(s);new bootstrap.Toast(n,{delay:3e3}).show(),n.addEventListener("hidden.bs.toast",()=>{n.remove()})}function Wt(e,t){const a=new Blob([e],{type:"text/csv;charset=utf-8;"}),s=document.createElement("a");s.href=URL.createObjectURL(a),s.download=t,s.click(),URL.revokeObjectURL(s.href)}window.navigateTo=_;window.showDeliveryModal=N;window.previewDataUrl=ie;window.downloadDataUrl=j;
+  `;a.insertAdjacentHTML("beforeend",i);const n=document.getElementById(s);new bootstrap.Toast(n,{delay:3e3}).show(),n.addEventListener("hidden.bs.toast",()=>{n.remove()})}function Ht(e,t){const a=new Blob([e],{type:"text/csv;charset=utf-8;"}),s=document.createElement("a");s.href=URL.createObjectURL(a),s.download=t,s.click(),URL.revokeObjectURL(s.href)}window.navigateTo=x;window.showDeliveryModal=R;window.previewDataUrl=se;window.downloadDataUrl=j;
