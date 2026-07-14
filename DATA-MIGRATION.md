@@ -164,6 +164,12 @@ Session authentication still uses `sessionStorage` only (login state).
 }
 ```
 
+### Local development auto-save
+
+When using `npm run dev`, each admin save action writes all datasets to `public/data/*.json` via a dev-only Vite endpoint (`/__api/local-data`). Refresh the page and data is reloaded from those files.
+
+This endpoint is **not available in production** — on GitHub Pages, use the download-and-commit workflow below.
+
 ## Migration steps
 
 ### 1. Export existing IndexedDB data (one time)

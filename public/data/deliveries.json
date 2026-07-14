@@ -1,1 +1,28 @@
-[]
+[
+  {
+    "id": "DEL-001",
+    "delivery_number": "DEL-PO-SGS-001",
+    "related_po": "PO-001",
+    "po_number": "PO-SGS-001",
+    "status": "delivered",
+    "delivery_date": "2026-07-14",
+    "amount": 555,
+    "lines": [
+      {
+        "product_id": "PRD-001",
+        "product_name": "TICKET VALIDATION VER 1.6 IMP. NUM. 11X08 CM",
+        "ordered_qty": 3000,
+        "remaining_qty": 3000,
+        "receive_qty": 3000,
+        "delivered_qty": 3000,
+        "unit_price_ht": 0.185,
+        "surface_mm2": 8800,
+        "line_total": 555
+      }
+    ],
+    "documents": [],
+    "notes": "Auto-created from PO-SGS-001",
+    "created_at": "2026-07-14T00:06:54.513Z",
+    "updated_at": "2026-07-14T00:07:13.648Z"
+  }
+]

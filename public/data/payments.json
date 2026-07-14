@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "id": "PAY-001",
+    "payment_reference": "PAY-DEL-PO-SGS-001",
+    "related_po": "PO-001",
+    "related_delivery": "DEL-001",
+    "delivery_number": "DEL-PO-SGS-001",
+    "po_number": "PO-SGS-001",
+    "payment_method": "bank-transfer",
+    "amount": 555,
+    "amount_paid": 0,
+    "payment_date": null,
+    "status": "pending",
+    "created_at": "2026-07-14T00:07:13.799Z",
+    "updated_at": "2026-07-14T00:07:13.799Z"
+  }
+]

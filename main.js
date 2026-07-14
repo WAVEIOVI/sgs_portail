@@ -3,6 +3,7 @@
 import {
   loadPortalData,
   saveProduct as dbSaveProduct,
+  deleteProduct as dbDeleteProduct,
   savePurchaseOrder,
   saveDelivery as dbSaveDelivery,
   savePayment as dbSavePayment,
@@ -14,7 +15,8 @@ import {
   getNextPONumber,
   peekNextPONumber,
   downloadJSON,
-  downloadAllDataFiles
+  downloadAllDataFiles,
+  isLocalDevPersistence
 } from './dataService.js';
 import {
   login,
@@ -110,8 +112,13 @@ function applyRoleUI() {
   });
 }
 
+function getLocalDevBanner() {
+  if (!isLocalDevPersistence) return '';
+  return `<div class="readonly-banner"><i class="fa-solid fa-floppy-disk"></i> Local development — changes save automatically to <code>public/data/</code>.</div>`;
+}
+
 function getReadOnlyBanner() {
-  if (canWrite()) return '';
+  if (canWrite()) return getLocalDevBanner();
   return `<div class="readonly-banner"><i class="fa-solid fa-eye"></i> Read-only access — contact WAVE VI admin to make changes.</div>`;
 }
 
@@ -296,7 +303,6 @@ async function createPaymentFromDelivery(delivery) {
   };
 
   await dbSavePayment(payment);
-  App.data.payments.push(payment);
   return payment;
 }
 
@@ -1062,6 +1068,11 @@ function renderProductCard(product) {
         <button class="btn btn-sm btn-outline-primary flex-grow-1" onclick="showProductModal('${product.id}')">
           <i class="fas fa-eye me-1"></i>View
         </button>
+        ${canWrite() ? `
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct('${product.id}')">
+          <i class="fas fa-trash me-1"></i>Delete
+        </button>
+        ` : ''}
       </div>
     </div>
   `;
@@ -1310,6 +1321,7 @@ function showProductModal(productId = null) {
   window.saveProduct = saveProduct;
   window.updateProductSurfacePreview = updateProductSurfacePreview;
   window.previewDataUrl = previewDataUrl;
+  window.deleteProduct = deleteProduct;
 }
 
 function updateProductSurfacePreview() {
@@ -1368,7 +1380,7 @@ async function saveProduct() {
   };
 
   await dbSaveProduct(product);
-  App.data.products.push(product);
+  // dbSaveProduct already updates the in-memory portal data; avoid pushing again to prevent duplicates
 
   if (sourceFile) {
     const doc = {
@@ -1383,12 +1395,27 @@ async function saveProduct() {
       created_at: new Date().toISOString().split('T')[0]
     };
     await dbSaveDocument(doc);
-    App.data.documents.push(doc);
+    // dbSaveDocument persists the document into portal data; no need to push locally
   }
 
   bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
   renderPage('products');
   showToast('Product created successfully', 'success');
+}
+
+async function deleteProduct(productId) {
+  if (!canWrite()) return;
+  if (!confirm('Delete this product? This action cannot be undone.')) return;
+
+  try {
+    await dbDeleteProduct(productId);
+    // Re-render products view to reflect deletion
+    renderPage('products');
+    showToast('Product deleted', 'success');
+  } catch (err) {
+    console.error('Delete product failed', err);
+    showToast('Failed to delete product', 'danger');
+  }
 }
 
 function formatProductFormat(format) {
@@ -2056,12 +2083,7 @@ async function savePO() {
   };
 
   await savePurchaseOrder(po);
-  if (existingPO) {
-    const index = App.data.purchaseOrders.findIndex(p => p.id === existingPO.id);
-    if (index !== -1) App.data.purchaseOrders[index] = po;
-  } else {
-    App.data.purchaseOrders.push(po);
-  }
+  // savePurchaseOrder updates the in-memory portal data; App.data references that data so no manual push is required
 
   bootstrap.Modal.getInstance(document.getElementById('poModal')).hide();
   renderPage('purchase-orders');
@@ -2169,7 +2191,7 @@ async function updatePOStatus(poId) {
       const exists = App.data.deliveries.some(d => d.id === delivery.id);
       if (!exists) {
         await dbSaveDelivery(delivery);
-        App.data.deliveries.push(delivery);
+        // dbSaveDelivery updated portal data; no need to push into App.data (shared reference)
         showToast(`Delivery ${delivery.delivery_number} created`, 'info');
       }
     }
@@ -2539,7 +2561,7 @@ async function confirmDelivery(deliveryId) {
     const nextDelivery = createDeliveryFromPO(po);
     if (nextDelivery) {
       await dbSaveDelivery(nextDelivery);
-      App.data.deliveries.push(nextDelivery);
+      // dbSaveDelivery updates the shared portal data; no manual push required
     }
   }
 
@@ -3020,8 +3042,9 @@ function renderSettings(container) {
           </div>
           <div class="card-body">
             <p class="text-muted small">
-              Changes made in the portal are kept in memory for this session only.
-              Download JSON files and commit them to <code>public/data/</code> to publish updates on GitHub Pages.
+              ${isLocalDevPersistence
+                ? 'On localhost, changes are saved automatically to <code>public/data/</code>. Commit those files when ready to publish.'
+                : 'Changes made in the portal are kept in memory for this session only. Download JSON files and commit them to <code>public/data/</code> to publish updates on GitHub Pages.'}
             </p>
             <div class="d-flex flex-wrap gap-2">
               <button type="button" class="btn btn-outline-primary" onclick="exportDataFiles()">
@@ -3280,7 +3303,7 @@ async function addDeliveryDocument(delivery, name, type, dataUrl) {
     created_at: new Date().toISOString().split('T')[0]
   };
   await dbSaveDocument(doc);
-  App.data.documents.push(doc);
+  // dbSaveDocument persists document into portal data; no manual push required
   return doc;
 }
 

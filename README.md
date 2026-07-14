@@ -19,6 +19,12 @@ npm run dev
 npm run build
 ```
 
+## Local development (auto-save)
+
+When running `npm run dev` on `http://localhost:3000`, admin changes are **automatically written** to `public/data/*.json` after each save action. Refresh the browser and your data persists.
+
+This uses a dev-only Vite API (`POST /__api/local-data`) — it is **not included in production builds** and does not run on GitHub Pages.
+
 ## Updating portal data (admin)
 
 1. Edit data in the portal while signed in as admin, or edit `public/data/*.json` directly.

@@ -11,7 +11,10 @@ const DEFAULT_SETTINGS = {
   ]
 };
 
-/** In-memory snapshot synced on load and admin edits (session only). */
+/** True when Vite dev server can write directly to public/data/ (localhost only). */
+export const isLocalDevPersistence = import.meta.env.DEV;
+
+/** In-memory snapshot synced on load and admin edits. */
 let portalData = null;
 
 /** Session counters for ID generation (not persisted to browser storage). */
@@ -107,50 +110,97 @@ function ensurePortalData() {
   return portalData;
 }
 
+/** Write all datasets to public/data/ via the Vite dev server (localhost only). */
+export async function persistToLocalFiles() {
+  if (!isLocalDevPersistence) return false;
+
+  const response = await fetch('/__api/local-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(exportDataFiles())
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || 'Failed to save local JSON files');
+  }
+
+  return true;
+}
+
+async function saveAndPersist(updateFn) {
+  updateFn();
+  await persistToLocalFiles();
+}
+
 export async function saveProduct(product) {
-  const data = ensurePortalData();
-  const index = data.products.findIndex((p) => p.id === product.id);
-  if (index >= 0) data.products[index] = product;
-  else data.products.push(product);
+  await saveAndPersist(() => {
+    const data = ensurePortalData();
+    const index = data.products.findIndex((p) => p.id === product.id);
+    if (index >= 0) data.products[index] = product;
+    else data.products.push(product);
+  });
+}
+
+export async function deleteProduct(productId) {
+  await saveAndPersist(() => {
+    const data = ensurePortalData();
+    data.products = (data.products || []).filter(p => p.id !== productId);
+  });
 }
 
 export async function savePurchaseOrder(po) {
-  const data = ensurePortalData();
-  const index = data.purchaseOrders.findIndex((p) => p.id === po.id);
-  if (index >= 0) data.purchaseOrders[index] = po;
-  else data.purchaseOrders.push(po);
+  await saveAndPersist(() => {
+    const data = ensurePortalData();
+    const index = data.purchaseOrders.findIndex((p) => p.id === po.id);
+    if (index >= 0) data.purchaseOrders[index] = po;
+    else data.purchaseOrders.push(po);
+  });
 }
 
 export async function saveDelivery(delivery) {
-  const data = ensurePortalData();
-  const index = data.deliveries.findIndex((d) => d.id === delivery.id);
-  if (index >= 0) data.deliveries[index] = delivery;
-  else data.deliveries.push(delivery);
+  await saveAndPersist(() => {
+    const data = ensurePortalData();
+    const index = data.deliveries.findIndex((d) => d.id === delivery.id);
+    if (index >= 0) data.deliveries[index] = delivery;
+    else data.deliveries.push(delivery);
+  });
 }
 
 export async function savePayment(payment) {
-  const data = ensurePortalData();
-  const index = data.payments.findIndex((p) => p.id === payment.id);
-  if (index >= 0) data.payments[index] = payment;
-  else data.payments.push(payment);
+  await saveAndPersist(() => {
+    const data = ensurePortalData();
+    const index = data.payments.findIndex((p) => p.id === payment.id);
+    if (index >= 0) data.payments[index] = payment;
+    else data.payments.push(payment);
+  });
 }
 
 export async function saveDocument(document) {
-  const data = ensurePortalData();
-  const index = data.documents.findIndex((d) => d.id === document.id);
-  if (index >= 0) data.documents[index] = document;
-  else data.documents.push(document);
+  await saveAndPersist(() => {
+    const data = ensurePortalData();
+    const index = data.documents.findIndex((d) => d.id === document.id);
+    if (index >= 0) data.documents[index] = document;
+    else data.documents.push(document);
+  });
 }
 
 export async function saveSettings(settings) {
-  const data = ensurePortalData();
-  data.settings = { ...data.settings, ...settings };
+  await saveAndPersist(() => {
+    const data = ensurePortalData();
+    data.settings = { ...data.settings, ...settings };
+    if (settings.categories) {
+      data.categories = settings.categories;
+    }
+  });
 }
 
 export async function saveCategories(categories) {
-  const data = ensurePortalData();
-  data.categories = categories;
-  data.settings.categories = categories;
+  await saveAndPersist(() => {
+    const data = ensurePortalData();
+    data.categories = categories;
+    data.settings.categories = categories;
+  });
 }
 
 export function exportData() {
@@ -202,6 +252,11 @@ export function importData(json) {
   portalData.settings.categories = portalData.categories;
   syncCountersFromData(portalData);
   syncPONumberCounter(portalData.purchaseOrders);
+  if (isLocalDevPersistence) {
+    persistToLocalFiles().catch((error) => {
+      console.warn('Local JSON persist after import failed:', error);
+    });
+  }
   return portalData;
 }
 
