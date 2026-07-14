@@ -3,7 +3,7 @@
   "supplierName": "SGS Printing Services",
   "currency": "TND",
   "defaultVat": 0,
-  "theme": "light",
+  "theme": "dark",
   "categories": [
     "Tickets",
     "Flyers",

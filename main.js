@@ -61,6 +61,9 @@ function initializeAuth() {
     if (!session) {
       errorEl.textContent = 'Invalid username or password.';
       errorEl.classList.remove('d-none');
+      // Shake animation
+      const card = document.querySelector('.login-card');
+      if (card) { card.style.animation = 'none'; card.offsetHeight; card.style.animation = ''; }
       return;
     }
 
@@ -68,12 +71,15 @@ function initializeAuth() {
     bootApp();
   });
 
-  document.getElementById('logoutBtn')?.addEventListener('click', () => {
+  // Both topnav profile and sidebar footer trigger logout
+  const logoutAction = () => {
     if (confirm('Sign out?')) {
       logout();
       location.reload();
     }
-  });
+  };
+  document.getElementById('logoutBtn')?.addEventListener('click', logoutAction);
+  document.getElementById('logoutTrigger')?.addEventListener('click', logoutAction);
 
   if (isAuthenticated()) {
     bootApp();
@@ -88,7 +94,7 @@ async function bootApp() {
   await loadAllData();
   initializeTheme();
   initializeRouter();
-  initializeGlobalSearch();
+  initializeCommandPalette();
   initializeEventListeners();
   updateLastUpdate();
   updateBreadcrumb(App.currentPage);
@@ -114,7 +120,7 @@ function applyRoleUI() {
 
 function getLocalDevBanner() {
   if (!isLocalDevPersistence) return '';
-  return `<div class="readonly-banner"><i class="fa-solid fa-floppy-disk"></i> Local development — changes save automatically to <code>public/data/</code>.</div>`;
+  return `<div class="readonly-banner"><i class="fa-solid fa-floppy-disk"></i> Local development — changes save automatically.</div>`;
 }
 
 function getReadOnlyBanner() {
@@ -144,6 +150,19 @@ function normalizeDeliveryStatus(status) {
   if (status === 'preparing') return 'pending';
   if (status === 'partially-delivered') return 'partial';
   return status;
+}
+
+function normalizeOrderStatus(status) {
+  if (!status) return 'Unknown';
+  const s = String(status).toLowerCase().trim();
+  if (s === 'draft' || s === 'created') return 'Draft';
+  if (s === 'pending' || s === 'preparing') return 'Pending';
+  if (s === 'approved') return 'Approved';
+  if (s === 'in_production' || s === 'in production' || s === 'in-production' || s === 'production') return 'In Production';
+  if (s === 'completed' || s === 'delivered' || s === 'done') return 'Completed';
+  if (s === 'cancelled' || s === 'canceled') return 'Cancelled';
+  // Fallback: title-case the status string
+  return s.split(/[-_ ]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
 function migratePOFulfillment() {
@@ -479,80 +498,155 @@ function closeSidebar() {
   document.getElementById('sidebarOverlay')?.classList.remove('show');
 }
 
-// Global Search
-function initializeGlobalSearch() {
-  const searchInput = document.getElementById('globalSearch');
-  const searchResults = document.getElementById('searchResults');
+// Command Palette logic
+function initializeCommandPalette() {
+  const overlay = document.getElementById('commandPaletteOverlay');
+  const input = document.getElementById('commandInput');
+  const resultsContainer = document.getElementById('commandResults');
 
-  if (!searchInput || !searchResults) return;
+  if (!overlay || !input || !resultsContainer) return;
 
-  searchInput.addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase().trim();
-    if (query.length < 2) {
-      searchResults.classList.remove('active', 'show');
+  let searchResults = [];
+  let selectedIndex = -1;
+
+  const togglePalette = (show) => {
+    if (show) {
+      overlay.classList.remove('d-none');
+      // small delay to allow display block before opacity transition
+      setTimeout(() => {
+        overlay.classList.add('active');
+        input.value = '';
+        renderResults('');
+        input.focus();
+      }, 10);
+    } else {
+      overlay.classList.remove('active');
+      setTimeout(() => overlay.classList.add('d-none'), 200);
+    }
+  };
+
+  // Keyboard shortcut (Ctrl+K or Cmd+K)
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      togglePalette(!overlay.classList.contains('active'));
+    }
+    if (e.key === 'Escape' && overlay.classList.contains('active')) {
+      togglePalette(false);
+    }
+  });
+
+  // Close on backdrop click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) togglePalette(false);
+  });
+
+  const navigateToResult = (index) => {
+    if (index < 0 || index >= searchResults.length) return;
+    const item = searchResults[index];
+    togglePalette(false);
+    
+    if (item.action === 'page') {
+      navigateTo(item.target);
+    } else if (item.action === 'product') {
+      navigateTo('products');
+      setTimeout(() => showProductModal(item.id), 100); // Or select it in the split pane later
+    } else if (item.action === 'po') {
+      navigateTo('purchase-orders');
+      setTimeout(() => showPOModal(item.id), 100);
+    }
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedIndex = (selectedIndex + 1) % searchResults.length;
+      updateSelectionUI();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedIndex = (selectedIndex - 1 + searchResults.length) % searchResults.length;
+      updateSelectionUI();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      navigateToResult(selectedIndex);
+    }
+  });
+
+  input.addEventListener('input', (e) => {
+    renderResults(e.target.value.toLowerCase().trim());
+  });
+
+  const updateSelectionUI = () => {
+    const items = resultsContainer.querySelectorAll('.command-item');
+    items.forEach((item, idx) => {
+      if (idx === selectedIndex) {
+        item.classList.add('selected');
+        item.scrollIntoView({ block: 'nearest' });
+      } else {
+        item.classList.remove('selected');
+      }
+    });
+  };
+
+  const renderResults = (query) => {
+    searchResults = [];
+    selectedIndex = 0;
+
+    // Static commands
+    const pages = [
+      { name: 'Go to Dashboard', target: 'dashboard', icon: 'fa-gauge-high' },
+      { name: 'Go to Products', target: 'products', icon: 'fa-box-open' },
+      { name: 'Go to Purchase Orders', target: 'purchase-orders', icon: 'fa-file-invoice' },
+      { name: 'Go to Deliveries', target: 'deliveries', icon: 'fa-truck' }
+    ];
+
+    pages.forEach(p => {
+      if (!query || p.name.toLowerCase().includes(query)) {
+        searchResults.push({ ...p, action: 'page' });
+      }
+    });
+
+    if (query.length >= 2) {
+      App.data.products.forEach(p => {
+        if (p.name.toLowerCase().includes(query) || p.reference.toLowerCase().includes(query)) {
+          searchResults.push({ name: `Product: ${p.name}`, target: p.reference, icon: 'fa-box', action: 'product', id: p.id });
+        }
+      });
+      App.data.purchaseOrders.forEach(po => {
+        if (po.po_number.toLowerCase().includes(query) || po.status.includes(query)) {
+          searchResults.push({ name: `PO: ${po.po_number}`, target: po.status, icon: 'fa-file-invoice', action: 'po', id: p.id });
+        }
+      });
+    }
+
+    if (searchResults.length === 0) {
+      resultsContainer.innerHTML = '<div class="p-4 text-center text-muted">No matching results</div>';
       return;
     }
 
-    const results = [];
-
-    // Search products
-    App.data.products.forEach(p => {
-      if (p.name.toLowerCase().includes(query) || p.reference.toLowerCase().includes(query)) {
-        results.push({ type: 'product', icon: 'fa-box', name: p.name, detail: p.reference, id: p.id });
-      }
-    });
-
-    // Search POs
-    App.data.purchaseOrders.forEach(po => {
-      if (po.po_number.toLowerCase().includes(query) || po.status.includes(query)) {
-        results.push({ type: 'po', icon: 'fa-file-invoice', name: po.po_number, detail: po.status, id: po.id });
-      }
-    });
-
-    // Search documents
-    App.data.documents.forEach(d => {
-      if (d.name.toLowerCase().includes(query)) {
-        results.push({ type: 'document', icon: 'fa-file', name: d.name, detail: d.category, id: d.id });
-      }
-    });
-
-    if (results.length > 0) {
-      searchResults.innerHTML = results.slice(0, 8).map(r => `
-        <div class="search-result-item" data-type="${r.type}" data-id="${r.id}">
-          <i class="fas ${r.icon}"></i>
-          <div>
-            <p class="mb-0">${r.name}</p>
-            <small>${r.detail}</small>
-          </div>
+    resultsContainer.innerHTML = searchResults.map((r, idx) => `
+      <div class="command-item ${idx === 0 ? 'selected' : ''}" data-index="${idx}">
+        <i class="fas ${r.icon}"></i>
+        <div>
+          <div class="fw-medium">${r.name}</div>
+          ${r.target !== r.name && !r.target.startsWith('dashboard') && !r.target.startsWith('products') ? `<div class="small text-muted">${r.target}</div>` : ''}
         </div>
-      `).join('');
-      searchResults.classList.add('active', 'show');
+      </div>
+    `).join('');
 
-      searchResults.querySelectorAll('.search-result-item').forEach(item => {
-        item.addEventListener('click', () => {
-          searchResults.classList.remove('active', 'show');
-          searchInput.value = '';
-          if (item.dataset.type === 'product') {
-            navigateTo('products');
-            setTimeout(() => showProductModal(item.dataset.id), 100);
-          } else if (item.dataset.type === 'po') {
-            navigateTo('purchase-orders');
-            setTimeout(() => showPOModal(item.dataset.id), 100);
-          }
-        });
+    resultsContainer.querySelectorAll('.command-item').forEach(item => {
+      item.addEventListener('mouseover', () => {
+        selectedIndex = parseInt(item.dataset.index, 10);
+        updateSelectionUI();
       });
-    } else {
-      searchResults.innerHTML = '<div class="p-3 text-center text-muted">No results found</div>';
-      searchResults.classList.add('active', 'show');
-    }
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.search-container')) {
-      searchResults.classList.remove('active', 'show');
-    }
-  });
+      item.addEventListener('click', () => {
+        navigateToResult(parseInt(item.dataset.index, 10));
+      });
+    });
+  };
 }
+
+  // Replaced by Command Palette
 
 // Update Last Update Time
 function updateLastUpdate() {
@@ -569,35 +663,60 @@ function updateLastUpdate() {
 }
 
 // Page Rendering
-function renderPage(page) {
+async function renderPage(page) {
   const content = document.getElementById('mainContent');
   if (!content) return;
 
-  switch(page) {
-    case 'dashboard':
-      renderDashboard(content);
-      break;
-    case 'products':
-      renderProducts(content);
-      break;
-    case 'purchase-orders':
-      renderPurchaseOrders(content);
-      break;
-    case 'deliveries':
-      renderDeliveries(content);
-      break;
-    case 'payments':
-      renderPayments(content);
-      break;
-    case 'documents':
-      renderDocuments(content);
-      break;
-    case 'settings':
-      renderSettings(content);
-      break;
-    default:
-      renderDashboard(content);
-  }
+  // Show skeleton loader
+  content.innerHTML = `
+    <div class="skeleton-container" style="padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-4); opacity: 0; animation: fadeIn 0.2s ease forwards;">
+      <div class="skeleton" style="height: 40px; width: 30%; border-radius: var(--radius);"></div>
+      <div class="skeleton" style="height: 20px; width: 50%; border-radius: var(--radius); margin-bottom: var(--sp-4);"></div>
+      <div style="display: flex; gap: var(--sp-4);">
+        <div class="skeleton" style="height: 120px; flex: 1; border-radius: var(--radius-lg);"></div>
+        <div class="skeleton" style="height: 120px; flex: 1; border-radius: var(--radius-lg);"></div>
+        <div class="skeleton" style="height: 120px; flex: 1; border-radius: var(--radius-lg);"></div>
+      </div>
+      <div class="skeleton" style="height: 400px; width: 100%; border-radius: var(--radius-lg); margin-top: var(--sp-2);"></div>
+    </div>
+  `;
+
+  // Simulate minimal async delay for premium transition
+  await new Promise(r => setTimeout(r, 120));
+
+  content.style.opacity = '0';
+  
+  setTimeout(() => {
+    switch(page) {
+      case 'dashboard':
+        renderDashboard(content);
+        break;
+      case 'products':
+        renderProducts(content);
+        break;
+      case 'purchase-orders':
+        renderPurchaseOrders(content);
+        break;
+      case 'deliveries':
+        renderDeliveries(content);
+        break;
+      case 'payments':
+        renderPayments(content);
+        break;
+      case 'documents':
+        renderDocuments(content);
+        break;
+      case 'settings':
+        renderSettings(content);
+        break;
+      default:
+        renderDashboard(content);
+    }
+    
+    // Fade in
+    content.style.transition = 'opacity 0.15s ease-in-out';
+    content.style.opacity = '1';
+  }, 50);
 }
 
 // ============================================
@@ -608,197 +727,94 @@ function renderDashboard(container) {
 
   container.innerHTML = `
     ${getReadOnlyBanner()}
-    <div class="page-header">
-      <h1 class="page-title">Dashboard</h1>
-      <p class="page-subtitle">Overview of your supplier portal activities</p>
-    </div>
-
-    <!-- KPI Cards -->
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-icon primary">
-          <i class="fas fa-file-invoice"></i>
+    <div class="split-pane-layout">
+      
+      <!-- Left Pane: Operational Activity Stream -->
+      <div class="split-pane-detail" style="border-right: 1px solid var(--border-color); max-width: 65%;">
+        <div style="padding: var(--sp-6) var(--sp-8) var(--sp-4);">
+          <h1 class="page-title" style="font-size: var(--text-2xl); margin-bottom: 4px;">Activity Stream</h1>
+          <p style="font-size: var(--text-sm); color: var(--text-secondary); margin: 0;">Recent events across your supply chain</p>
         </div>
-        <div class="kpi-content">
-          <h3>${stats.totalPOs}</h3>
-          <p>Total Purchase Orders</p>
+        
+        <div class="activity-stream">
+          ${generateActivityStream()}
         </div>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-icon success">
-          <i class="fas fa-coins"></i>
+      <!-- Right Pane: Command Panel -->
+      <div class="split-pane-list" style="width: 35%; flex: auto; background: var(--bg-page);">
+        <div class="split-pane-list-header" style="border-bottom: 1px solid var(--border-color); background: var(--bg-page);">
+          <div class="split-pane-list-title" style="margin-bottom: 0;">Overview</div>
         </div>
-        <div class="kpi-content">
-          <h3>${formatCurrency(stats.totalHT)}</h3>
-          <p>Total Amount HT</p>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-icon info">
-          <i class="fas fa-check-circle"></i>
-        </div>
-        <div class="kpi-content">
-          <h3>${formatCurrency(stats.totalPaid)}</h3>
-          <p>Total Paid</p>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-icon danger">
-          <i class="fas fa-hourglass-half"></i>
-        </div>
-        <div class="kpi-content">
-          <h3>${formatCurrency(stats.remainingBalance)}</h3>
-          <p>Remaining Balance</p>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-icon primary">
-          <i class="fas fa-truck-loading"></i>
-        </div>
-        <div class="kpi-content">
-          <h3>${stats.pendingDeliveries}</h3>
-          <p>Pending Deliveries</p>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-icon success">
-          <i class="fas fa-box"></i>
-        </div>
-        <div class="kpi-content">
-          <h3>${stats.deliveredOrders}</h3>
-          <p>Delivered Orders</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="status-breakdown-section">
-      <div class="section-header">
-        <div>
-          <h5 class="section-title">Order Status Breakdown</h5>
-          <p class="section-subtitle">See current PO distribution by workflow stage.</p>
-        </div>
-      </div>
-      <div class="status-breakdown-grid">
-        ${stats.orderStatusItems.map(item => `
-          <div class="status-card">
-            <div class="status-card-top">
-              <span class="status-indicator ${item.colorClass}"></span>
-              <span class="status-label">${item.label}</span>
-            </div>
-            <div class="status-value">${item.count}</div>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-
-    <!-- Charts Row -->
-    <div class="row g-4 mb-4">
-      <div class="col-lg-8">
-        <div class="card">
-          <div class="card-header">
-            <h5 class="card-title mb-0">Monthly Purchases</h5>
-          </div>
-          <div class="card-body">
-            <div class="chart-container">
-              <canvas id="monthlyPurchasesChart"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-lg-4">
-        <div class="card">
-          <div class="card-header">
-            <h5 class="card-title mb-0">Delivery Status</h5>
-          </div>
-          <div class="card-body">
-            <div class="chart-container">
-              <canvas id="deliveryStatusChart"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Payment Progress -->
-    <div class="row g-4 mb-4">
-      <div class="col-12">
-        <div class="card">
-          <div class="card-header">
-            <h5 class="card-title mb-0">Payment Progress</h5>
-          </div>
-          <div class="card-body">
-            <div class="row align-items-center">
-              <div class="col-md-8">
-                <div class="mb-3">
-                  <div class="d-flex justify-content-between mb-1">
-                    <span>Payment Collection</span>
-                    <span>${stats.paymentProgress}%</span>
-                  </div>
-                  <div class="progress">
-                    <div class="progress-bar bg-success" style="width: ${stats.paymentProgress}%"></div>
-                  </div>
-                </div>
-                <div class="row text-center mt-4">
-                  <div class="col-4">
-                    <h4 class="text-success">${formatCurrency(stats.totalPaid)}</h4>
-                    <small class="text-muted">Paid</small>
-                  </div>
-                  <div class="col-4">
-                    <h4 class="text-warning">${formatCurrency(stats.partialPayments)}</h4>
-                    <small class="text-muted">Partial</small>
-                  </div>
-                  <div class="col-4">
-                    <h4 class="text-danger">${formatCurrency(stats.remainingBalance)}</h4>
-                    <small class="text-muted">Pending</small>
-                  </div>
-                </div>
+        <div class="split-pane-list-content" style="padding: var(--sp-4);">
+          
+          <!-- Key Metrics -->
+          <div style="display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-5);">
+            <div class="command-panel-tile" onclick="navigateTo('deliveries')" style="cursor:pointer;">
+              <div>
+                <div class="cpt-label">Pending Deliveries</div>
+                <div class="cpt-value" style="color: var(--c-amber-500);">${stats.pendingDeliveries}</div>
               </div>
-              <div class="col-md-4">
-                <div class="chart-container" style="height: 200px;">
-                  <canvas id="paymentProgressChart"></canvas>
-                </div>
+              <div style="color: var(--text-muted); font-size: 20px;"><i class="fa-solid fa-truck"></i></div>
+            </div>
+            <div class="command-panel-tile" onclick="navigateTo('payments')" style="cursor:pointer;">
+              <div>
+                <div class="cpt-label">Outstanding Balance</div>
+                <div class="cpt-value metric-value-md" style="color: var(--c-rose-500);">${formatCurrency(stats.remainingBalance)}</div>
+              </div>
+              <div style="color: var(--text-muted); font-size: 20px;"><i class="fa-solid fa-credit-card"></i></div>
+            </div>
+            <div class="command-panel-tile" onclick="navigateTo('purchase-orders')" style="cursor:pointer;">
+              <div>
+                <div class="cpt-label">Total Orders</div>
+                <div class="cpt-value">${stats.totalPOs}</div>
+              </div>
+              <div style="color: var(--text-muted); font-size: 20px;"><i class="fa-solid fa-file-invoice"></i></div>
+            </div>
+          </div>
+
+          <!-- Order Status Breakdown -->
+          <div class="card" style="margin-bottom: var(--sp-4);">
+            <div class="card-header">
+              <span class="section-title" style="margin: 0;">Order Status</span>
+            </div>
+            <div class="card-body" style="padding: var(--sp-4);">
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                ${stats.orderStatusItems.map(item => `
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="status-indicator ${item.colorClass}"></span>
+                      <span style="font-size: var(--text-sm); font-weight: 500; color: var(--text-primary);">${item.label}</span>
+                    </div>
+                    <span style="font-size: var(--text-sm); font-weight: 700; color: var(--text-primary);">${item.count}</span>
+                  </div>
+                `).join('')}
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Recent Activity -->
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0">Recent Activity</h5>
-        <a href="#purchase-orders" class="btn btn-sm btn-outline-primary">View All</a>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Action</th>
-                <th>Reference</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${generateRecentActivityRows()}
-            </tbody>
-          </table>
+          <!-- Payment Progress -->
+          <div class="card">
+            <div class="card-header">
+              <span class="section-title" style="margin: 0;">Payment Collection</span>
+              <span style="font-size: var(--text-xs); font-weight: 700; color: var(--c-emerald-500);">${stats.paymentProgress}%</span>
+            </div>
+            <div class="card-body" style="padding: var(--sp-4);">
+              <div class="progress-custom">
+                <div class="progress-bar-custom" style="width: ${stats.paymentProgress}%; background: var(--c-emerald-500);"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-top: var(--sp-3); font-size: var(--text-xs); color: var(--text-muted);">
+                <span>Collected</span>
+                <span style="color: var(--text-primary); font-weight: 600;">${stats.paymentProgress}% of delivered value</span>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
+
     </div>
   `;
-
-  // Initialize charts after DOM is ready
-  setTimeout(() => {
-    initializeDashboardCharts(stats);
-  }, 100);
 }
 
 function calculateDashboardStats() {
@@ -812,7 +828,7 @@ function calculateDashboardStats() {
   const totalDeliveredAmount = confirmedDeliveries.reduce((sum, d) => sum + getDeliveryAmount(d), 0);
   const totalPaid = App.data.payments.reduce((sum, p) => sum + (p.amount_paid || 0), 0);
   const statusCounts = pos.reduce((counts, po) => {
-    const status = po.status || 'Unknown';
+    const status = normalizeOrderStatus(po.status) || 'Unknown';
     counts[status] = (counts[status] || 0) + 1;
     return counts;
   }, {});
@@ -967,40 +983,94 @@ function initializeDashboardCharts(stats) {
   }
 }
 
-function generateRecentActivityRows() {
+function generateActivityStream() {
   const activities = [];
 
-  // Add recent POs
-  App.data.purchaseOrders.slice(0, 3).forEach(po => {
+  const statusIconMap = {
+    draft: { icon: 'fa-file', color: 'var(--c-slate-400)', bg: 'rgba(100,116,139,.12)' },
+    pending: { icon: 'fa-hourglass-half', color: 'var(--c-amber-500)', bg: 'rgba(245,158,11,.12)' },
+    approved: { icon: 'fa-circle-check', color: 'var(--c-blue-500)', bg: 'rgba(59,130,246,.12)' },
+    'in-production': { icon: 'fa-gear', color: 'var(--c-violet-500)', bg: 'rgba(139,92,246,.12)' },
+    completed: { icon: 'fa-check-double', color: 'var(--c-emerald-500)', bg: 'rgba(16,185,129,.12)' },
+    'completed-partial': { icon: 'fa-flag-checkered', color: 'var(--c-cyan-500)', bg: 'rgba(6,182,212,.12)' },
+    cancelled: { icon: 'fa-xmark', color: 'var(--c-rose-500)', bg: 'rgba(239,68,68,.12)' },
+    delivered: { icon: 'fa-truck-ramp-box', color: 'var(--c-emerald-500)', bg: 'rgba(16,185,129,.12)' },
+    partial: { icon: 'fa-truck', color: 'var(--c-violet-500)', bg: 'rgba(139,92,246,.12)' },
+    payment: { icon: 'fa-credit-card', color: 'var(--c-cyan-500)', bg: 'rgba(6,182,212,.12)' }
+  };
+
+  App.data.purchaseOrders.slice().sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0)).slice(0, 4).forEach(po => {
     activities.push({
-      date: po.created_at,
-      action: 'Purchase Order Created',
+      date: po.updated_at || po.created_at,
+      action: 'Purchase Order',
+      subAction: formatStatus(po.status),
       reference: po.po_number,
-      status: po.status
+      detail: formatCurrency(po.total_ht),
+      type: po.status,
+      page: 'purchase-orders',
+      id: po.id
     });
   });
 
-  // Add recent deliveries
-  App.data.deliveries.slice(0, 2).forEach(d => {
+  App.data.deliveries.slice().sort((a,b) => new Date(b.updated_at||0) - new Date(a.updated_at||0)).slice(0, 3).forEach(d => {
+    const st = normalizeDeliveryStatus(d.status);
     activities.push({
-      date: d.updated_at,
-      action: 'Delivery ' + (d.status === 'delivered' ? 'Completed' : 'Updated'),
+      date: d.updated_at || d.created_at,
+      action: 'Delivery',
+      subAction: formatStatus(st),
       reference: d.delivery_number,
-      status: d.status === 'delivered' ? 'completed' : 'in-production'
+      detail: formatCurrency(getDeliveryAmount(d)),
+      type: st === 'delivered' ? 'delivered' : st === 'partial' ? 'partial' : 'pending',
+      page: 'deliveries',
+      id: d.id
     });
   });
 
-  // Sort by date
-  activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+  App.data.payments.slice().sort((a,b) => new Date(b.updated_at||0) - new Date(a.updated_at||0)).slice(0, 2).forEach(p => {
+    if (p.amount_paid > 0) {
+      activities.push({
+        date: p.updated_at || p.payment_date,
+        action: 'Payment',
+        subAction: formatStatus(p.status),
+        reference: p.payment_reference,
+        detail: formatCurrency(p.amount_paid),
+        type: 'payment',
+        page: 'payments',
+        id: p.id
+      });
+    }
+  });
 
-  return activities.slice(0, 5).map(a => `
-    <tr>
-      <td>${formatDate(a.date)}</td>
-      <td>${a.action}</td>
-      <td><a href="#purchase-orders" class="text-primary" onclick="navigateTo('purchase-orders'); return false;">${a.reference}</a></td>
-      <td><span class="status-badge ${a.status}">${formatStatus(a.status)}</span></td>
-    </tr>
-  `).join('');
+  activities.sort((a, b) => new Date(b.date||0) - new Date(a.date||0));
+  const visible = activities.slice(0, 8);
+
+  if (visible.length === 0) {
+    return `<div class="empty-state">
+      <div class="empty-state-icon"><i class="fa-solid fa-bolt-lightning"></i></div>
+      <h3>No activity yet</h3>
+      <p>Create your first purchase order to get started</p>
+    </div>`;
+  }
+
+  return visible.map((a, idx) => {
+    const meta = statusIconMap[a.type] || statusIconMap.draft;
+    return `
+    <div class="activity-item" style="animation-delay: ${idx * 40}ms;">
+      <div style="padding-top: 2px; flex-shrink: 0;">
+        <div style="width: 32px; height: 32px; border-radius: var(--radius); background: ${meta.bg}; display: flex; align-items: center; justify-content: center; color: ${meta.color}; font-size: 13px; flex-shrink: 0;">
+          <i class="fa-solid ${meta.icon}"></i>
+        </div>
+      </div>
+      <div class="activity-body">
+        <div class="activity-action">${a.action} <span style="color: var(--text-secondary); font-weight: 500;">·</span> <span style="color: ${meta.color}; font-weight: 600; font-size: var(--text-xs);">${a.subAction}</span></div>
+        <div style="display: flex; align-items: center; gap: var(--sp-3); margin-top: 2px;">
+          <span class="activity-ref" onclick="navigateTo('${a.page}')">${a.reference}</span>
+          <span style="font-size: var(--text-xs); color: var(--text-secondary); font-weight: 600;">${a.detail}</span>
+        </div>
+        <div class="activity-time" style="margin-top: 2px;">${formatDate(a.date)}</div>
+      </div>
+    </div>
+  `}).join('');
 }
 
 // ============================================
@@ -1010,84 +1080,78 @@ function renderProducts(container) {
   const products = App.data.products;
 
   container.innerHTML = `
-    <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
-      <div>
-        <h1 class="page-title">Product Catalog</h1>
-        <p class="page-subtitle">${products.length} products available</p>
+    <div class="split-pane-layout">
+      
+      <!-- List Pane -->
+      <div class="split-pane-list" style="width: 340px;">
+        <div class="split-pane-list-header">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-3);">
+            <h1 class="split-pane-list-title" style="margin: 0;">Product Catalog</h1>
+            ${canWrite() ? `<button class="btn-primary-custom" onclick="showProductModal()" title="New Product" style="padding: 6px 12px; font-size: 12px;"><i class="fas fa-plus"></i> New</button>` : ''}
+          </div>
+          
+          <div style="display: flex; gap: var(--sp-2);">
+            <input type="text" class="filter-search" id="productSearch" placeholder="Search products…" oninput="filterProductList()" style="padding-left: 12px;">
+            <select class="filter-select" id="categoryFilter" onchange="filterProductList()" style="min-width: 120px;">
+              <option value="">All Categories</option>
+              ${App.data.categories.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        
+        <div class="split-pane-list-content" id="productListContainer">
+          ${generateProductListItems(products)}
+        </div>
       </div>
-      <div>
-        ${canWrite() ? `<button class="btn btn-primary" onclick="showProductModal()">
-          <i class="fas fa-plus me-2"></i>Add Product
-        </button>` : ''}
-      </div>
-    </div>
 
-    <!-- Filters -->
-    <div class="filters-bar">
-      <div class="filter-group">
-        <label>Category:</label>
-        <select class="form-select form-select-sm" id="categoryFilter" onchange="filterProducts()">
-          <option value="">All Categories</option>
-          ${App.data.categories.map(c => `<option value="${c}">${c}</option>`).join('')}
-        </select>
+      <!-- Detail Pane -->
+      <div class="split-pane-detail" id="productDetailContainer">
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="fa-solid fa-box-open"></i></div>
+          <h3>No product selected</h3>
+          <p>Select a product from the list to view details</p>
+        </div>
       </div>
-      <div class="filter-group">
-        <label>Search:</label>
-        <input type="text" class="form-control form-control-sm" id="productSearch" placeholder="Search products..." oninput="filterProducts()">
-      </div>
-    </div>
-
-    <!-- Products Grid -->
-    <div class="products-grid" id="productsGrid">
-      ${products.map(p => renderProductCard(p)).join('')}
-    </div>
-  `;
-
-  // Make functions global
-  window.showProductModal = showProductModal;
-  window.filterProducts = filterProducts;
-}
-
-function renderProductCard(product) {
-  return `
-    <div class="product-card" data-category="${product.category}" data-id="${product.id}">
-      <div class="product-image">
-        ${product.product_image
-          ? `<img src="${product.product_image}" alt="${product.name}" loading="lazy">`
-          : `<div class="product-image-placeholder"><i class="fas fa-image"></i></div>`
-        }
-      </div>
-      <div class="product-info">
-        <div class="product-category">${product.category}</div>
-        <h3 class="product-name">${product.name}</h3>
-        <div class="product-reference">${product.reference}</div>
-        <div class="product-price">${formatCurrency(product.price_ht)} HT</div>
-        ${product.surface_mm2 ? `<div class="product-reference small">${formatSurfaceMm2(product.surface_mm2)}</div>` : ''}
-      </div>
-      <div class="product-actions d-flex gap-2 px-3 pb-3">
-        <button class="btn btn-sm btn-outline-primary flex-grow-1" onclick="showProductModal('${product.id}')">
-          <i class="fas fa-eye me-1"></i>View
-        </button>
-        ${canWrite() ? `
-        <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct('${product.id}')">
-          <i class="fas fa-trash me-1"></i>Delete
-        </button>
-        ` : ''}
-      </div>
+      
     </div>
   `;
+
+  window.filterProductList = filterProductList;
+  window.renderProductDetails = renderProductDetails;
+  window.showProductModal = showProductModal; // Used for creation
+
+  // Auto-select first product if available
+  if (products.length > 0) {
+    setTimeout(() => renderProductDetails(products[0].id), 80);
+  }
 }
 
-function filterProducts() {
+function generateProductListItems(products) {
+  if (products.length === 0) return `<div class="empty-state" style="padding: var(--sp-8);"><div class="empty-state-icon"><i class="fa-solid fa-box-open"></i></div><h3>No products</h3><p>No products match your filter</p></div>`;
+  
+  return products.map(p => `
+    <div class="list-item-card" id="product-list-item-${p.id}" onclick="renderProductDetails('${p.id}')">
+      <div class="list-item-title">
+        <span class="list-item-ref" style="color: var(--text-primary); font-size: var(--text-md);">${p.name}</span>
+        <span class="list-item-amount">${formatCurrency(p.price_ht, 3)}</span>
+      </div>
+      <div class="list-item-sub">
+        <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);">${p.reference}</span>
+        <span style="font-size: 10px; font-weight: 700; color: var(--brand-primary); text-transform: uppercase; letter-spacing: .3px;">${p.category}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterProductList() {
   const category = document.getElementById('categoryFilter')?.value || '';
   const search = document.getElementById('productSearch')?.value.toLowerCase() || '';
-
+  
   let filtered = App.data.products;
 
   if (category) {
     filtered = filtered.filter(p => p.category === category);
   }
-
   if (search) {
     filtered = filtered.filter(p =>
       p.name.toLowerCase().includes(search) ||
@@ -1095,31 +1159,160 @@ function filterProducts() {
     );
   }
 
-  const grid = document.getElementById('productsGrid');
-  if (grid) {
-    grid.innerHTML = filtered.map(p => renderProductCard(p)).join('');
+  const container = document.getElementById('productListContainer');
+  if (container) {
+    container.innerHTML = generateProductListItems(filtered);
   }
 }
 
-function showProductModal(productId = null) {
+function renderProductDetails(productId) {
+  // Update active state in list
+  document.querySelectorAll('#productListContainer .list-item-card').forEach(el => el.classList.remove('active'));
+  const activeItem = document.getElementById(`product-list-item-${productId}`);
+  if (activeItem) activeItem.classList.add('active');
+
+  const p = App.data.products.find(p => p.id === productId);
+  const container = document.getElementById('productDetailContainer');
+  if (!p || !container) return;
+
+  container.innerHTML = `
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div class="d-flex gap-4 w-100">
+        <div class="product-detail-img-box" style="width: 120px; height: 120px;">
+          ${p.product_image ? `<img src="${p.product_image}" style="width:100%; height:100%; object-fit:contain; border-radius:var(--radius-md);">` : `<i class="fa-solid fa-image fs-1 text-muted opacity-25"></i>`}
+        </div>
+        <div class="flex-grow-1">
+          <div class="d-flex justify-content-between align-items-start w-100">
+            <div>
+              <span class="badge bg-primary text-white mb-2">${p.category}</span>
+              <h2 class="m-0 fs-3 fw-bold lh-sm mb-1">${p.name}</h2>
+              <p class="text-muted m-0 font-monospace small">${p.reference}</p>
+            </div>
+            <div class="d-flex gap-2">
+              ${canWrite() ? `<button class="btn btn-primary-custom btn-sm" onclick="showProductModal('${p.id}', 'view')"><i class="fas fa-eye me-1"></i> Full Details</button>` : ''}
+              ${canWrite() ? `<button class="btn btn-outline-secondary btn-sm" onclick="showProductModal('${p.id}', 'edit')"><i class="fas fa-pen me-1"></i> Edit</button>` : ''}
+              ${canWrite() ? `<button class="btn btn-outline-danger btn-sm" onclick="deleteProduct('${p.id}')"><i class="fas fa-trash me-1"></i> Delete</button>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    ${p.description ? `
+      <div class="mb-5 text-secondary">${p.description}</div>
+    ` : ''}
+
+    <div class="row g-4 mb-4">
+      <div class="col-md-6">
+        <div class="p-4 rounded h-100" style="background: var(--bg-page); border: 1px solid var(--border-color);">
+          <h6 class="fw-bold mb-4 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Pricing & Units</h6>
+          <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
+            <span class="text-secondary">Base Price (HT)</span>
+            <span class="fw-bold text-primary fs-5">${formatCurrency(p.price_ht, 3)}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
+            <span class="text-secondary">Unit of Measure</span>
+            <span class="fw-medium text-body text-capitalize">${p.unit}</span>
+          </div>
+          ${p.surface_mm2 ? `
+            <div class="d-flex justify-content-between">
+              <span class="text-secondary">Surface Area</span>
+              <span class="fw-medium font-monospace small">${formatSurfaceMm2(p.surface_mm2)}</span>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="p-4 rounded h-100" style="background: var(--bg-page); border: 1px solid var(--border-color);">
+          <h6 class="fw-bold mb-4 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Specifications</h6>
+          
+          <div class="row g-3">
+            <div class="col-6">
+              <small class="text-muted d-block mb-1">Print Support</small>
+              <span class="fw-medium text-capitalize">${p.print_support || '-'}</span>
+            </div>
+            <div class="col-6">
+              <small class="text-muted d-block mb-1">Print Method</small>
+              <span class="fw-medium text-capitalize">${p.print_method || '-'}</span>
+            </div>
+            <div class="col-6">
+              <small class="text-muted d-block mb-1">Material</small>
+              <span class="fw-medium text-capitalize">${p.material || '-'}</span>
+            </div>
+            <div class="col-6">
+              <small class="text-muted d-block mb-1">Finish</small>
+              <span class="fw-medium text-capitalize">${p.finish || '-'}</span>
+            </div>
+            <div class="col-6">
+              <small class="text-muted d-block mb-1">Format</small>
+              <span class="fw-medium text-capitalize">${formatProductFormat(p.format)}</span>
+            </div>
+            <div class="col-6">
+              <small class="text-muted d-block mb-1">Dimensions</small>
+              <span class="fw-medium">${formatProductDimensions(p)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    ${p.source_file_id || p.delivery_image ? `
+      <h6 class="fw-bold mb-3 mt-4 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Linked Resources</h6>
+      <div class="row g-3">
+        ${p.source_file_id ? `
+          <div class="col-md-6">
+            <div class="doc-card cursor-pointer" onclick="downloadDocument('${p.source_file_id}')">
+              <div class="doc-icon doc-icon-pdf">
+                <i class="fa-solid fa-file-pdf"></i>
+              </div>
+              <div class="doc-info">
+                <div class="doc-name">Source Artwork</div>
+                <div class="doc-meta text-primary">Download Source</div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+        ${p.delivery_image ? `
+          <div class="col-md-6">
+            <div class="doc-card cursor-pointer" onclick="previewDataUrl('${p.delivery_image}', 'Delivery Guide')">
+              <div class="doc-icon doc-icon-img" style="background: transparent; border: 1px solid var(--border-color); overflow: hidden; padding: 2px;">
+                <img src="${p.delivery_image}" style="width:100%; height:100%; object-fit:cover; border-radius: var(--radius-sm);">
+              </div>
+              <div class="doc-info">
+                <div class="doc-name">Delivery/Pack Guide</div>
+                <div class="doc-meta text-primary">View Image</div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    ` : ''}
+  `;
+}
+
+// filterProductList replaced filterProducts
+
+function showProductModal(productId = null, mode = 'edit') {
   if (!productId && !canWrite()) {
     showToast('You have read-only access.', 'warning');
     return;
   }
 
   const product = productId ? App.data.products.find(p => p.id === productId) : null;
-  const isEdit = !!product;
+  const isView = mode === 'view' && !!product;
+  const isEdit = mode === 'edit' && !!product;
 
   const modalHtml = `
     <div class="modal fade" id="productModal" tabindex="-1">
       <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">${isEdit ? product.name : 'New Product'}</h5>
+            <h5 class="modal-title">${isView ? 'Product Details' : (isEdit ? 'Edit Product' : 'New Product')}</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            ${isEdit ? `
+            ${isView ? `
               <div class="row g-4 mb-4">
                 ${product.product_image ? `
                   <div class="col-md-6">
@@ -1163,6 +1356,7 @@ function showProductModal(productId = null) {
               ` : ''}
             ` : `
               <form id="productForm">
+                <input type="hidden" id="productIdHidden">
                 <div class="row g-3">
                   <div class="col-md-6">
                     <label class="form-label">Reference *</label>
@@ -1285,7 +1479,7 @@ function showProductModal(productId = null) {
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-            ${!isEdit ? `
+            ${!isView ? `
               <button type="button" class="btn btn-primary" onclick="saveProduct()">
                 <i class="fas fa-save me-1"></i>Save Product
               </button>
@@ -1301,6 +1495,26 @@ function showProductModal(productId = null) {
 
   // Add modal to DOM
   document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  // Pre-populate if editing
+  if (isEdit && product) {
+    document.getElementById('productIdHidden').value = product.id;
+    document.getElementById('productRef').value = product.reference || '';
+    document.getElementById('productName').value = product.name || '';
+    document.getElementById('productCategory').value = product.category || '';
+    document.getElementById('productUnit').value = product.unit || '';
+    document.getElementById('productDesc').value = product.description || '';
+    document.getElementById('productPrice').value = product.price_ht || '';
+    document.getElementById('productPrintSupport').value = product.print_support || '';
+    document.getElementById('productPrintMethod').value = product.print_method || '';
+    document.getElementById('productMaterial').value = product.material || '';
+    document.getElementById('productFinish').value = product.finish || '';
+    document.getElementById('productFormat').value = product.format || '';
+    document.getElementById('productDimWidth').value = product.dimension_width || '';
+    document.getElementById('productDimHeight').value = product.dimension_height || '';
+    document.getElementById('productSurface').value = product.surface_mm2 || '';
+    updateProductSurfacePreview();
+  }
 
   // Show modal
   const modal = new bootstrap.Modal(document.getElementById('productModal'));
@@ -1346,6 +1560,9 @@ function updateProductSurfacePreview() {
 
 async function saveProduct() {
   if (!canWrite()) return;
+  const existingId = document.getElementById('productIdHidden')?.value;
+  const existingProduct = existingId ? App.data.products.find(p => p.id === existingId) : null;
+
   const format = document.getElementById('productFormat').value;
   const dimWidth = parseFloat(document.getElementById('productDimWidth').value) || 0;
   const dimHeight = parseFloat(document.getElementById('productDimHeight').value) || 0;
@@ -1356,7 +1573,7 @@ async function saveProduct() {
   const sourceFile = document.getElementById('sourceFile').files[0];
 
   const product = {
-    id: getNextId('PRD', 'product'),
+    id: existingId || getNextId('PRD', 'product'),
     reference: document.getElementById('productRef').value,
     name: document.getElementById('productName').value,
     category: document.getElementById('productCategory').value,
@@ -1371,11 +1588,11 @@ async function saveProduct() {
     dimension_width: dimWidth,
     dimension_height: format === 'rectangle' ? dimHeight : null,
     surface_mm2: surface,
-    product_image: productImageFile ? await readFileAsDataURL(productImageFile) : null,
-    delivery_image: deliveryImageFile ? await readFileAsDataURL(deliveryImageFile) : null,
-    source_file: sourceFile ? await readFileAsDataURL(sourceFile) : null,
-    source_file_name: sourceFile ? sourceFile.name : null,
-    created_at: new Date().toISOString(),
+    product_image: productImageFile ? await readFileAsDataURL(productImageFile) : (existingProduct ? existingProduct.product_image : null),
+    delivery_image: deliveryImageFile ? await readFileAsDataURL(deliveryImageFile) : (existingProduct ? existingProduct.delivery_image : null),
+    source_file: sourceFile ? await readFileAsDataURL(sourceFile) : (existingProduct ? existingProduct.source_file : null),
+    source_file_name: sourceFile ? sourceFile.name : (existingProduct ? existingProduct.source_file_name : null),
+    created_at: existingProduct ? existingProduct.created_at : new Date().toISOString(),
     updated_at: new Date().toISOString()
   };
 
@@ -1450,126 +1667,216 @@ function renderPurchaseOrders(container) {
   const orders = App.data.purchaseOrders;
 
   container.innerHTML = `
-    <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
-      <div>
-        <h1 class="page-title">Purchase Orders</h1>
-        <p class="page-subtitle">${orders.length} orders tracked</p>
-      </div>
-      <div>
-        ${canWrite() ? `<button class="btn btn-primary" onclick="showPOModal()">
-          <i class="fas fa-plus me-2"></i>New PO
-        </button>` : ''}
-      </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="filters-bar">
-      <div class="filter-group">
-        <label>Status:</label>
-        <select class="form-select form-select-sm" id="poStatusFilter" onchange="filterPOs()">
-          <option value="">All Status</option>
-          ${['draft', 'pending', 'approved', 'in-production', 'completed', 'cancelled'].map(s =>
-            `<option value="${s}">${formatStatus(s)}</option>`
-          ).join('')}
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Date:</label>
-        <input type="date" class="form-control form-control-sm" id="poDateFilter" onchange="filterPOs()">
-      </div>
-      <div class="ms-auto">
-        <button class="btn btn-outline-secondary btn-sm" onclick="exportPOs()">
-          <i class="fas fa-download me-1"></i>Export CSV
-        </button>
-      </div>
-    </div>
-
-    <!-- PO Table -->
-    <div class="card">
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>PO Number</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>Amount HT</th>
-                <th>Delivery Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="poTableBody">
-              ${orders.map(po => renderPORow(po)).join('')}
-            </tbody>
-          </table>
+    <div class="split-pane-layout">
+      
+      <!-- List Pane -->
+      <div class="split-pane-list" style="width: 340px;">
+        <div class="split-pane-list-header">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-3);">
+            <h1 class="split-pane-list-title" style="margin: 0;">Purchase Orders</h1>
+            ${canWrite() ? `<button class="btn-primary-custom" onclick="showPOModal()" title="New PO" style="padding: 6px 12px; font-size: 12px;"><i class="fas fa-plus"></i> New</button>` : ''}
+          </div>
+          
+          <div style="display: flex; gap: var(--sp-2);">
+            <input type="text" class="filter-search" placeholder="Search POs…" oninput="filterPOList(this.value)" style="padding-left: 12px;">
+            <select class="filter-select" id="poStatusFilter" onchange="filterPOList()" style="min-width: 100px;">
+              <option value="">All</option>
+              ${['draft', 'pending', 'approved', 'in-production', 'completed', 'cancelled'].map(s =>
+                `<option value="${s}">${formatStatus(s)}</option>`
+              ).join('')}
+            </select>
+          </div>
+        </div>
+        
+        <div class="split-pane-list-content" id="poListContainer">
+          ${generatePOListItems(orders)}
         </div>
       </div>
-    </div>
 
-    <!-- Pagination -->
-    <div class="pagination-wrapper">
-      <div class="pagination-info">Showing ${orders.length} entries</div>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-          <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
-          <li class="page-item active"><a class="page-link" href="#">1</a></li>
-          <li class="page-item disabled"><a class="page-link" href="#">Next</a></li>
-        </ul>
-      </nav>
+      <!-- Detail Pane -->
+      <div class="split-pane-detail" id="poDetailContainer">
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="fa-solid fa-file-invoice"></i></div>
+          <h3>No order selected</h3>
+          <p>Select a purchase order from the list to view details</p>
+        </div>
+      </div>
+      
     </div>
   `;
 
   window.showPOModal = showPOModal;
-  window.filterPOs = filterPOs;
+  window.filterPOList = filterPOList;
+  window.renderPODetails = renderPODetails;
   window.exportPOs = exportPOs;
+
+  // Auto-select first PO if available
+  if (orders.length > 0) {
+    setTimeout(() => renderPODetails(orders[0].id), 50);
+  }
 }
 
-function renderPORow(po) {
-  return `
-    <tr data-status="${po.status}" data-date="${po.date}">
-      <td>
-        <a href="#" class="text-primary fw-medium" onclick="showPOModal('${po.id}'); return false;">${po.po_number}</a>
-      </td>
-      <td>${formatDate(po.date)}</td>
-      <td><span class="status-badge ${po.status}">${formatStatus(po.status)}</span></td>
-      <td>${formatCurrency(po.total_ht, 3)}</td>
-      <td>${po.actual_delivery_date ? formatDate(po.actual_delivery_date) : (po.expected_delivery_date ? formatDate(po.expected_delivery_date) : '-')}</td>
-      <td>
-        <button class="action-btn" onclick="showPOModal('${po.id}')" title="View">
-          <i class="fas fa-eye"></i>
-        </button>
-        ${canWrite() ? `
-          <button class="action-btn" onclick="editPO('${po.id}')" title="Edit">
-            <i class="fas fa-pen"></i>
-          </button>
-        ` : ''}
-        <button class="action-btn" onclick="printPO('${po.id}')" title="Print">
-          <i class="fas fa-print"></i>
-        </button>
-      </td>
-    </tr>
-  `;
+function generatePOListItems(orders) {
+  if (orders.length === 0) return `<div class="empty-state" style="padding: var(--sp-8);"><div class="empty-state-icon"><i class="fa-solid fa-file-invoice"></i></div><h3>No orders</h3><p>No purchase orders match your filter</p></div>`;
+  
+  return orders.sort((a,b) => new Date(b.date) - new Date(a.date)).map(po => {
+    const statusDotClass = po.status === 'completed' || po.status === 'completed-partial' ? 'status-success'
+      : po.status === 'cancelled' ? 'status-danger'
+      : po.status === 'in-production' ? 'status-primary'
+      : po.status === 'approved' ? 'status-info'
+      : po.status === 'pending' ? 'status-warning'
+      : 'status-secondary';
+    return `
+    <div class="list-item-card" id="po-list-item-${po.id}" onclick="renderPODetails('${po.id}')">
+      <div class="list-item-title">
+        <span class="list-item-ref">${po.po_number}</span>
+        <span class="list-item-amount">${formatCurrency(po.total_ht, 0)}</span>
+      </div>
+      <div class="list-item-sub">
+        <span>${formatDate(po.date)}</span>
+        <span class="status-indicator ${statusDotClass}" title="${po.status}"></span>
+      </div>
+    </div>
+  `}).join('');
 }
 
-function filterPOs() {
+function filterPOList(searchQuery = '') {
   const status = document.getElementById('poStatusFilter')?.value || '';
-  const date = document.getElementById('poDateFilter')?.value || '';
-
+  let query = typeof searchQuery === 'string' ? searchQuery.toLowerCase() : '';
+  
   let filtered = App.data.purchaseOrders;
 
   if (status) {
     filtered = filtered.filter(po => po.status === status);
   }
-
-  if (date) {
-    filtered = filtered.filter(po => po.date.startsWith(date));
+  if (query) {
+    filtered = filtered.filter(po => po.po_number.toLowerCase().includes(query) || (po.supplier_reference || '').toLowerCase().includes(query));
   }
 
-  const tbody = document.getElementById('poTableBody');
-  if (tbody) {
-    tbody.innerHTML = filtered.map(po => renderPORow(po)).join('');
+  const container = document.getElementById('poListContainer');
+  if (container) {
+    container.innerHTML = generatePOListItems(filtered);
   }
+}
+
+function renderPODetails(poId) {
+  // Update active state in list
+  document.querySelectorAll('#poListContainer .list-item-card').forEach(el => el.classList.remove('active'));
+  const activeItem = document.getElementById(`po-list-item-${poId}`);
+  if (activeItem) activeItem.classList.add('active');
+
+  const po = App.data.purchaseOrders.find(p => p.id === poId);
+  const container = document.getElementById('poDetailContainer');
+  if (!po || !container) return;
+
+  const deliveries = App.data.deliveries.filter(d => d.related_po === poId);
+  const f = getPOFulfillment(po);
+
+  container.innerHTML = `
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div>
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <h2 class="m-0 fs-3 fw-bold">${po.po_number}</h2>
+          <span class="badge rounded-pill border" style="background: var(--bg-page); color: var(--text-primary);">${formatStatus(po.status)}</span>
+        </div>
+        <p class="text-muted m-0">Ordered ${formatDate(po.date)} ${po.supplier_reference ? `• Ref: ${po.supplier_reference}` : ''}</p>
+      </div>
+      <div class="d-flex gap-2">
+        ${canWrite() ? `<button class="btn btn-outline-secondary btn-sm" onclick="showPOModal('${po.id}', {editMode: true})"><i class="fas fa-pen me-1"></i> Edit</button>` : ''}
+        <button class="btn btn-outline-secondary btn-sm" onclick="printPO('${po.id}')"><i class="fas fa-print me-1"></i> Print</button>
+      </div>
+    </div>
+
+    ${renderStatusTimeline(po.status)}
+
+    <div class="row g-4 mb-4 mt-2">
+      <div class="col-md-6">
+        <div class="p-4 rounded h-100" style="background: var(--bg-page); border: 1px solid var(--border-color);">
+          <h6 class="fw-bold mb-4 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Financial Summary</h6>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-secondary">Total HT</span>
+            <span class="fw-bold">${formatCurrency(po.total_ht)}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-3">
+            <span class="text-secondary">Received HT</span>
+            <span class="fw-bold text-success">${formatCurrency(f.receivedAmount)}</span>
+          </div>
+          <hr class="border-light opacity-50">
+          <div class="d-flex justify-content-between mt-2">
+            <span class="fw-bold">Total TTC (estimated)</span>
+            <span class="fw-bold">${formatCurrency(po.total_ht * 1.19)}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="p-4 rounded h-100" style="background: var(--bg-page); border: 1px solid var(--border-color);">
+          <h6 class="fw-bold mb-4 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Fulfillment Progress</h6>
+          <div class="d-flex justify-content-between mb-2 small fw-bold">
+            <span>${f.totalReceived} / ${f.totalOrdered} pcs</span>
+            <span class="text-primary">${f.pct}%</span>
+          </div>
+          <div class="progress mb-3" style="height: 6px;">
+            <div class="progress-bar bg-primary" style="width: ${f.pct}%"></div>
+          </div>
+          <div class="d-flex justify-content-between text-secondary small">
+            <span>Expected Delivery:</span>
+            <span class="fw-medium text-body">${po.expected_delivery_date ? formatDate(po.expected_delivery_date) : 'Not set'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h6 class="fw-bold mb-3 mt-4 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Order Lines (${po.lines?.length || 0})</h6>
+    <div class="table-responsive rounded border mb-4">
+      <table class="data-table mb-0 align-middle">
+        <thead style="background: var(--bg-page); border-bottom: 1px solid var(--border-color);">
+          <tr>
+            <th class="py-3 px-3 text-secondary small text-uppercase">Product</th>
+            <th class="py-3 px-3 text-secondary small text-uppercase text-center">Ordered</th>
+            <th class="py-3 px-3 text-secondary small text-uppercase text-center">Received</th>
+            <th class="py-3 px-3 text-secondary small text-uppercase text-end">Line HT</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(po.lines || []).map(line => `
+            <tr class="border-bottom">
+              <td class="p-3">
+                <a href="#" class="text-primary fw-medium text-decoration-none d-block mb-1" onclick="showProductModal('${line.product_id}', 'view'); return false;">${line.product_name}</a>
+                <span class="badge border" style="background: var(--bg-page); color: var(--text-primary);">${formatCurrency(line.unit_price_ht, 3)} / u</span>
+              </td>
+              <td class="p-3 text-center fw-medium">${line.quantity}</td>
+              <td class="p-3 text-center ${line.received_qty >= line.quantity ? 'text-success' : 'text-warning'} fw-medium">${line.received_qty || 0}</td>
+              <td class="p-3 text-end fw-bold">${formatCurrency((line.quantity || 0) * (line.unit_price_ht || 0), 3)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    ${po.notes ? `
+      <h6 class="fw-bold mb-2 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Notes</h6>
+      <div class="p-3 rounded border mb-4 text-secondary" style="background: var(--bg-page);">${po.notes}</div>
+    ` : ''}
+    
+    ${deliveries.length > 0 ? `
+      <h6 class="fw-bold mb-3 mt-4 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Related Deliveries</h6>
+      <div class="d-flex flex-column gap-2 mb-4">
+        ${deliveries.map(d => `
+          <div class="d-flex justify-content-between align-items-center p-3 rounded border shadow-sm cursor-pointer" style="background: var(--bg-card);" onclick="navigateTo('deliveries');setTimeout(()=>renderDeliveryDetails('${d.id}'),100);">
+            <div>
+              <div class="fw-bold text-primary mb-1">${d.delivery_number}</div>
+              <small class="text-muted">${d.delivery_date ? formatDate(d.delivery_date) : 'Pending'}</small>
+            </div>
+            <div class="text-end">
+              <div class="fw-bold">${formatCurrency(getDeliveryAmount(d))}</div>
+              <span class="badge ${d.status === 'delivered' ? 'bg-success' : 'bg-warning'} mt-1">${formatStatus(normalizeDeliveryStatus(d.status))}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+  `;
 }
 
 function showPOModal(poId = null, options = {}) {
@@ -1675,7 +1982,7 @@ function showPOModal(poId = null, options = {}) {
                       ${getPOFulfillment(po).lines.map(line => `
                         <tr>
                           <td>
-                            <a href="#" class="text-primary fw-medium" onclick="showProductModal('${line.product_id}'); return false;">
+                            <a href="#" class="text-primary fw-medium" onclick="showProductModal('${line.product_id}', 'view'); return false;">
                               ${line.product_name}
                             </a>
                           </td>
@@ -2141,7 +2448,7 @@ function printPO(poId) {
               <td>${l.product_name}</td>
               <td>${l.quantity}</td>
               <td>${formatCurrency(l.unit_price_ht)}</td>
-              <td>${formatCurrency(l.line_total_ht)}</td>
+              <td>${formatCurrency((l.quantity || 0) * (l.unit_price_ht || 0))}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -2237,128 +2544,220 @@ function renderDeliveries(container) {
     .reduce((sum, d) => sum + getDeliveryAmount(d), 0);
 
   container.innerHTML = `
-    ${getReadOnlyBanner()}
-    <div class="page-header">
-      <div class="page-header-left">
-        <h1 class="page-title"><i class="fa-solid fa-truck me-2 text-primary-brand"></i>Deliveries</h1>
-        <p class="page-subtitle">Track partial and full shipments linked to purchase orders</p>
+    <div class="split-pane-layout">
+      
+      <!-- List Pane -->
+      <div class="split-pane-list" style="width: 340px;">
+        <div class="split-pane-list-header">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-3);">
+            <h1 class="split-pane-list-title" style="margin: 0;">Deliveries</h1>
+          </div>
+          
+          <div style="display: flex; gap: var(--sp-2);">
+            <input type="text" class="filter-search" placeholder="Search deliveries…" oninput="filterDeliveryList(this.value)" style="padding-left: 12px;">
+            <select class="filter-select" id="deliveryStatusFilter" onchange="filterDeliveryList()" style="min-width: 100px;">
+              <option value="">All</option>
+              <option value="pending">Pending</option>
+              <option value="partial">Partial</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="split-pane-list-content" id="deliveryListContainer">
+          ${generateDeliveryListItems(deliveries)}
+        </div>
       </div>
-    </div>
 
-    <div class="row g-3 mb-4">
-      <div class="col-6 col-md-3">
-        <div class="kpi-card kpi-warning">
-          <div class="kpi-icon icon-warning"><i class="fa-solid fa-clock"></i></div>
-          <div class="kpi-label">Pending</div>
-          <div class="kpi-value">${pending}</div>
+      <!-- Detail Pane -->
+      <div class="split-pane-detail" id="deliveryDetailContainer">
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="fa-solid fa-truck"></i></div>
+          <h3>No delivery selected</h3>
+          <p>Select a delivery from the list to view details</p>
         </div>
       </div>
-      <div class="col-6 col-md-3">
-        <div class="kpi-card kpi-purple">
-          <div class="kpi-icon icon-purple"><i class="fa-solid fa-boxes-stacked"></i></div>
-          <div class="kpi-label">Partial</div>
-          <div class="kpi-value">${partial}</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="kpi-card kpi-success">
-          <div class="kpi-icon icon-success"><i class="fa-solid fa-check"></i></div>
-          <div class="kpi-label">Delivered</div>
-          <div class="kpi-value">${delivered}</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="kpi-card kpi-primary">
-          <div class="kpi-icon icon-primary"><i class="fa-solid fa-coins"></i></div>
-          <div class="kpi-label">Confirmed HT</div>
-          <div class="kpi-value" style="font-size:18px">${formatCurrency(confirmedAmount)}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="filter-bar">
-      <select class="filter-select form-select form-select-sm" id="deliveryStatusFilter" onchange="filterDeliveries()" style="width:180px">
-        <option value="">All Statuses</option>
-        <option value="pending">Pending</option>
-        <option value="partial">Partial</option>
-        <option value="delivered">Delivered</option>
-        <option value="cancelled">Cancelled</option>
-      </select>
-      <span class="ms-auto text-muted small">${deliveries.length} deliveries</span>
-    </div>
-
-    <div class="row g-3" id="deliveriesList">
-      ${deliveries.length ? deliveries.map(d => renderDeliveryCard(d)).join('') : `
-        <div class="col-12"><div class="empty-state"><i class="fa-solid fa-truck"></i><p>No deliveries yet</p></div></div>
-      `}
+      
     </div>
   `;
 
-  window.filterDeliveries = filterDeliveries;
+  window.filterDeliveryList = filterDeliveryList;
+  window.renderDeliveryDetails = renderDeliveryDetails;
   window.showDeliveryModal = showDeliveryModal;
+
+  // Auto-select first delivery if available
+  if (deliveries.length > 0) {
+    setTimeout(() => renderDeliveryDetails(deliveries[0].id), 50);
+  }
 }
 
-function renderDeliveryCard(delivery) {
-  const status = normalizeDeliveryStatus(delivery.status);
-  const payment = App.data.payments.find(p => p.related_delivery === delivery.id);
-  const totalRemaining = delivery.lines.reduce((s, l) => s + (l.remaining_qty ?? l.ordered_qty), 0);
-  const totalReceiving = delivery.lines.reduce((s, l) => s + (l.delivered_qty || l.receive_qty || 0), 0);
-  const qtyPct = totalRemaining > 0 ? Math.round((totalReceiving / totalRemaining) * 100) : (status !== 'pending' ? 100 : 0);
-
-  return `
-    <div class="col-md-6 col-xl-4">
-      <div class="card delivery-card h-100" data-status="${status}">
-        <div class="card-header d-flex justify-content-between align-items-center py-3">
-          <div>
-            <h6 class="mb-0">${delivery.delivery_number}</h6>
-            <small class="text-muted">${delivery.po_number}</small>
-          </div>
-          <span class="status-badge ${status}">${formatStatus(status)}</span>
-        </div>
-        <div class="card-body">
-          <div class="d-flex justify-content-between mb-3">
-            <div>
-              <small class="text-muted d-block">Amount</small>
-              <span class="fw-bold text-primary-brand">${formatCurrency(getDeliveryAmount(delivery))}</span>
-            </div>
-            <div class="text-end">
-              <small class="text-muted d-block">Date</small>
-              <span>${delivery.delivery_date ? formatDate(delivery.delivery_date) : '—'}</span>
-            </div>
-          </div>
-          ${status === 'pending' ? renderFulfillmentBar(qtyPct, 'Qty to receive') : `
-            <div class="small text-muted">${totalReceiving} pcs confirmed in this delivery</div>
-          `}
-          ${payment ? `
-            <div class="mt-3 pt-3 border-top d-flex justify-content-between align-items-center">
-              <small class="text-muted">Payment</small>
-              <span class="status-badge ${payment.status}">${formatCurrency(payment.amount_paid || 0)} / ${formatCurrency(payment.amount)}</span>
-            </div>
-          ` : ''}
-        </div>
-        <div class="card-footer bg-transparent border-0 pt-0 pb-3 px-3">
-          <button class="btn btn-outline-primary btn-sm w-100" onclick="showDeliveryModal('${delivery.id}')">
-            <i class="fa-solid fa-eye me-1"></i>View Details
-          </button>
-        </div>
+function generateDeliveryListItems(deliveries) {
+  if (deliveries.length === 0) return `<div class="empty-state" style="padding: var(--sp-8);"><div class="empty-state-icon"><i class="fa-solid fa-truck"></i></div><h3>No deliveries</h3><p>No deliveries match your filter</p></div>`;
+  
+  return deliveries.sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).map(d => {
+    const status = normalizeDeliveryStatus(d.status);
+    const statusDotClass = status === 'delivered' ? 'status-success'
+      : status === 'cancelled' ? 'status-danger'
+      : status === 'partial' ? 'status-primary'
+      : 'status-warning';
+    return `
+    <div class="list-item-card" id="delivery-list-item-${d.id}" onclick="renderDeliveryDetails('${d.id}')">
+      <div class="list-item-title">
+        <span class="list-item-ref">${d.delivery_number}</span>
+        <span class="list-item-amount">${formatCurrency(getDeliveryAmount(d), 0)}</span>
+      </div>
+      <div class="list-item-sub">
+        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;" title="${d.po_number}">${d.po_number}</span>
+        <span class="status-indicator ${statusDotClass}" title="${status}"></span>
       </div>
     </div>
-  `;
+  `}).join('');
 }
 
-function filterDeliveries() {
+function filterDeliveryList(searchQuery = '') {
   const status = document.getElementById('deliveryStatusFilter')?.value || '';
+  let query = typeof searchQuery === 'string' ? searchQuery.toLowerCase() : '';
+  
   let filtered = App.data.deliveries;
 
   if (status) {
     filtered = filtered.filter(d => normalizeDeliveryStatus(d.status) === status);
   }
+  if (query) {
+    filtered = filtered.filter(d => d.delivery_number.toLowerCase().includes(query) || d.po_number.toLowerCase().includes(query));
+  }
 
-  const list = document.getElementById('deliveriesList');
-  if (list) {
-    list.innerHTML = filtered.map(d => renderDeliveryCard(d)).join('');
+  const container = document.getElementById('deliveryListContainer');
+  if (container) {
+    container.innerHTML = generateDeliveryListItems(filtered);
   }
 }
+
+function renderDeliveryDetails(deliveryId) {
+  // Update active state in list
+  document.querySelectorAll('#deliveryListContainer .list-item-card').forEach(el => el.classList.remove('active'));
+  const activeItem = document.getElementById(`delivery-list-item-${deliveryId}`);
+  if (activeItem) activeItem.classList.add('active');
+
+  const delivery = App.data.deliveries.find(d => d.id === deliveryId);
+  const container = document.getElementById('deliveryDetailContainer');
+  if (!delivery || !container) return;
+
+  const status = normalizeDeliveryStatus(delivery.status);
+  const payment = App.data.payments.find(p => p.related_delivery === delivery.id);
+  const canConfirm = canWrite() && status === 'pending';
+  const po = App.data.purchaseOrders.find(p => p.id === delivery.related_po);
+  const poFulfillment = po ? getPOFulfillment(po) : null;
+  const amount = getDeliveryAmount(delivery);
+
+  const totalRemaining = delivery.lines.reduce((s, l) => s + (l.remaining_qty ?? l.ordered_qty), 0);
+  const totalReceiving = delivery.lines.reduce((s, l) => s + (l.delivered_qty || l.receive_qty || 0), 0);
+  const qtyPct = totalRemaining > 0 ? Math.round((totalReceiving / totalRemaining) * 100) : (status !== 'pending' ? 100 : 0);
+
+  container.innerHTML = `
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div>
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <h2 class="m-0 fs-3 fw-bold">${delivery.delivery_number}</h2>
+          <span class="badge rounded-pill border" style="background: var(--bg-page); color: var(--text-primary);">${formatStatus(status)}</span>
+        </div>
+        <p class="text-muted m-0">PO: <a href="#" class="text-primary text-decoration-none" onclick="navigateTo('purchase-orders');setTimeout(()=>renderPODetails('${po?.id}'),100);return false;">${delivery.po_number}</a></p>
+      </div>
+      <div class="d-flex gap-2">
+        ${canConfirm ? `<button class="btn btn-primary btn-sm" onclick="showDeliveryModal('${delivery.id}')"><i class="fas fa-check me-1"></i> Confirm Receipt</button>` : ''}
+      </div>
+    </div>
+
+    <div class="row g-4 mb-4 mt-2">
+      <div class="col-md-4">
+        <div class="p-4 rounded h-100" style="background: var(--bg-page); border: 1px solid var(--border-color);">
+          <h6 class="fw-bold mb-3 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Delivery Value</h6>
+          <div class="fs-4 fw-bold text-primary">${formatCurrency(amount)}</div>
+          <div class="small text-muted mt-1">${delivery.delivery_date ? formatDate(delivery.delivery_date) : 'Pending Delivery Date'}</div>
+        </div>
+      </div>
+      
+      <div class="col-md-4">
+        <div class="p-4 rounded h-100" style="background: var(--bg-page); border: 1px solid var(--border-color);">
+          <h6 class="fw-bold mb-3 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Fulfillment Progress</h6>
+          <div class="d-flex justify-content-between mb-2 small fw-bold">
+            <span>${totalReceiving} / ${totalRemaining} pcs</span>
+            <span class="text-primary">${qtyPct}%</span>
+          </div>
+          <div class="progress mb-2" style="height: 6px;">
+            <div class="progress-bar bg-primary" style="width: ${qtyPct}%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="p-4 rounded h-100" style="background: var(--bg-page); border: 1px solid var(--border-color);">
+          <h6 class="fw-bold mb-3 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Payment Status</h6>
+          ${payment ? `
+            <div class="d-flex justify-content-between mb-2 small fw-bold">
+              <span>${formatCurrency(payment.amount_paid || 0)}</span>
+              <span class="${payment.status === 'paid' ? 'text-success' : 'text-warning'}">${formatStatus(payment.status)}</span>
+            </div>
+            <div class="progress" style="height: 6px;">
+              <div class="progress-bar ${payment.status === 'paid' ? 'bg-success' : 'bg-warning'}" style="width: ${Math.round(((payment.amount_paid||0) / payment.amount)*100)}%"></div>
+            </div>
+            <a href="#" class="small text-decoration-none mt-3 d-block" onclick="navigateTo('payments');setTimeout(()=>showPaymentModal('${payment.id}'),100);return false;">View Payment ${payment.payment_reference}</a>
+          ` : `
+            <div class="text-muted small">No payment record found.</div>
+          `}
+        </div>
+      </div>
+    </div>
+
+    ${poFulfillment ? `
+      <div class="alert alert-light border shadow-sm mb-4">
+        <div class="d-flex justify-content-between mb-2 small fw-bold">
+          <span class="text-muted"><i class="fa-solid fa-chart-pie me-2"></i>Overall PO Fulfillment</span>
+          <span>${poFulfillment.pct}%</span>
+        </div>
+        <div class="progress" style="height: 4px;">
+          <div class="progress-bar bg-secondary" style="width: ${poFulfillment.pct}%"></div>
+        </div>
+      </div>
+    ` : ''}
+
+    <h6 class="fw-bold mb-3 mt-4 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Delivery Lines (${delivery.lines?.length || 0})</h6>
+    <div class="table-responsive rounded border mb-4">
+      <table class="table table-borderless table-hover mb-0 align-middle">
+        <thead style="background: var(--bg-page); border-bottom: 1px solid var(--border-color);">
+          <tr>
+            <th class="py-3 px-3 text-secondary small text-uppercase">Product</th>
+            <th class="py-3 px-3 text-secondary small text-uppercase text-center">Remaining</th>
+            <th class="py-3 px-3 text-secondary small text-uppercase text-center">Received</th>
+            <th class="py-3 px-3 text-secondary small text-uppercase text-end">Line Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(delivery.lines || []).map(line => `
+            <tr class="border-bottom">
+              <td class="p-3">
+                <a href="#" class="text-primary fw-medium text-decoration-none d-block mb-1" onclick="showProductModal('${line.product_id}'); return false;">${line.product_name}</a>
+                <span class="badge border" style="background: var(--bg-page); color: var(--text-primary);">${formatCurrency(line.unit_price_ht, 3)} / u</span>
+              </td>
+              <td class="p-3 text-center text-muted fw-medium">${line.remaining_qty ?? line.ordered_qty}</td>
+              <td class="p-3 text-center ${(line.delivered_qty||0) >= (line.remaining_qty ?? line.ordered_qty) ? 'text-success' : 'text-primary'} fw-bold">${line.delivered_qty || line.receive_qty || 0}</td>
+              <td class="p-3 text-end fw-bold">${formatCurrency((line.line_total || 0), 3)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    ${delivery.notes ? `
+      <h6 class="fw-bold mb-2 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Notes</h6>
+      <div class="p-3 rounded border mb-4 text-secondary" style="background: var(--bg-page);">${delivery.notes}</div>
+    ` : ''}
+  `;
+}
+// Legacy functions removed
+
+// filterDeliveryList replaced filterDeliveries
 
 function showDeliveryModal(deliveryId) {
   const delivery = App.data.deliveries.find(d => d.id === deliveryId);
@@ -2825,7 +3224,7 @@ function renderDocuments(container) {
     <!-- Category Filter -->
     <div class="filters-bar">
       <div class="d-flex gap-2 flex-wrap">
-        <button class="btn btn-sm btn-primary" onclick="filterDocumentsByCategory('')">
+        <button class="btn-primary-custom" onclick="filterDocumentsByCategory('')">
           All Documents
         </button>
         ${[
@@ -2835,8 +3234,8 @@ function renderDocuments(container) {
           { value: 'technical-files', label: 'Technical Files', icon: 'fa-file-code' },
           { value: 'artwork-files', label: 'Artwork Files', icon: 'fa-palette' }
         ].map(cat => `
-          <button class="btn btn-sm btn-outline-secondary" onclick="filterDocumentsByCategory('${cat.value}')">
-            <i class="fas ${cat.icon} me-1"></i>${cat.label}
+          <button class="btn-outline-custom" onclick="filterDocumentsByCategory('${cat.value}')">
+            <i class="fas ${cat.icon}"></i> ${cat.label}
           </button>
         `).join('')}
       </div>
@@ -3237,7 +3636,7 @@ function renderStatusTimeline(currentStatus) {
   const statusOrder = ['draft', 'pending', 'approved', 'in-production', 'completed'];
   const currentIndex = statusOrder.indexOf(currentStatus);
 
-  return statusOrder.map((s, i) => {
+  const items = statusOrder.map((s, i) => {
     const isActive = i <= currentIndex;
     const isCurrent = s === currentStatus;
     const statusClass = isCurrent ? s : (isActive ? 'completed' : 'draft');
@@ -3250,6 +3649,8 @@ function renderStatusTimeline(currentStatus) {
       <div><small>${formatStatus(s)}</small></div>
     </div>`;
   }).join('');
+  
+  return `<div class="d-flex justify-content-between align-items-center w-100 mb-4">${items}</div>`;
 }
 
 function formatCurrency(amount, minimumFractionDigits = 2) {
