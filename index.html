@@ -4,173 +4,253 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WAVE VI – SGS Supplier Portal</title>
+  <meta name="description" content="WAVE VI SGS Supplier Portal – Manage purchase orders, deliveries, payments and products.">
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <!-- Bootstrap CSS (kept for modal/JS components) -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/main-V3QDqsM6.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/main-CiJLJ26B.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="./assets/main-CfxEIxIj.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/main-Bex2fj06.css">
 </head>
 <body>
 
-<!-- Login Screen -->
+<!-- ── Login Screen ──────────────────────────────────────────── -->
 <div id="loginScreen" class="login-screen">
   <div class="login-card">
     <div class="login-brand">
-      <img src="./logo-wave-vi.png" alt="WAVE VI" class="logo-image login-logo">
+      <div class="login-logo-wrap">
+        <img src="./logo-wave-vi.png" alt="WAVE VI" class="login-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <span class="logo-fallback" aria-hidden="true">W6</span>
+      </div>
       <h1>WAVE VI</h1>
       <p>SGS Supplier Portal</p>
     </div>
-    <form id="loginForm" class="login-form">
-      <div class="mb-3">
+
+    <form id="loginForm" autocomplete="on">
+      <div class="form-group">
         <label class="form-label" for="loginUser">Username</label>
-        <input type="text" class="form-control" id="loginUser" autocomplete="username" required placeholder="wavevi or sgs">
+        <input
+          type="text"
+          class="form-control"
+          id="loginUser"
+          autocomplete="username"
+          required
+          placeholder="wavevi or sgs"
+        >
       </div>
-      <div class="mb-3">
+      <div class="form-group">
         <label class="form-label" for="loginPass">Password</label>
-        <input type="password" class="form-control" id="loginPass" autocomplete="current-password" required placeholder="Password">
+        <input
+          type="password"
+          class="form-control"
+          id="loginPass"
+          autocomplete="current-password"
+          required
+          placeholder="Enter your password"
+        >
       </div>
-      <div id="loginError" class="alert alert-danger py-2 small d-none" role="alert"></div>
-      <button type="submit" class="btn btn-primary w-100 login-submit">
-        <i class="fa-solid fa-right-to-bracket me-2"></i>Sign In
+      <div id="loginError" class="login-error d-none" role="alert"></div>
+      <button type="submit" class="login-submit">
+        <i class="fa-solid fa-arrow-right-to-bracket"></i>
+        Sign In
       </button>
     </form>
   </div>
 </div>
 
-<!-- App Shell (hidden until login) -->
+<!-- ── App Shell ─────────────────────────────────────────────── -->
 <div id="appShell" class="d-none">
 
-<aside id="sidebar" class="sidebar">
-  <div class="sidebar-header">
-    <div class="sidebar-logo">
-      <img src="./logo-wave-vi.png" alt="WAVE VI" class="logo-image">
-      <div class="logo-text">
-        <span class="logo-main">WAVE VI</span>
-        <span class="logo-sub">Supplier Portal</span>
-      </div>
-    </div>
-    <button class="btn sidebar-toggle-btn d-lg-none" id="sidebarClose" type="button">
-      <i class="fa fa-times"></i>
-    </button>
-  </div>
-
-  <nav class="sidebar-nav">
-    <div class="nav-section-label">MAIN MENU</div>
-    <a href="#dashboard" class="nav-item nav-link active" data-page="dashboard">
-      <i class="fa-solid fa-gauge-high nav-icon"></i>
-      <span class="nav-label">Dashboard</span>
-    </a>
-    <a href="#products" class="nav-item nav-link" data-page="products">
-      <i class="fa-solid fa-box-open nav-icon"></i>
-      <span class="nav-label">Product Catalog</span>
-    </a>
-    <a href="#purchase-orders" class="nav-item nav-link" data-page="purchase-orders">
-      <i class="fa-solid fa-file-invoice nav-icon"></i>
-      <span class="nav-label">Purchase Orders</span>
-    </a>
-    <a href="#deliveries" class="nav-item nav-link" data-page="deliveries">
-      <i class="fa-solid fa-truck nav-icon"></i>
-      <span class="nav-label">Deliveries</span>
-    </a>
-    <a href="#payments" class="nav-item nav-link" data-page="payments">
-      <i class="fa-solid fa-credit-card nav-icon"></i>
-      <span class="nav-label">Payments</span>
-    </a>
-
-    <div class="nav-section-label mt-3">RESOURCES</div>
-    <a href="#documents" class="nav-item nav-link" data-page="documents">
-      <i class="fa-solid fa-folder-open nav-icon"></i>
-      <span class="nav-label">Documents</span>
-    </a>
-
-    <div class="nav-section-label mt-3 admin-only">SYSTEM</div>
-    <a href="#settings" class="nav-item nav-link admin-only" data-page="settings" id="settingsNav">
-      <i class="fa-solid fa-gear nav-icon"></i>
-      <span class="nav-label">Settings</span>
-    </a>
-  </nav>
-
-  <div class="sidebar-footer">
-    <div class="supplier-badge">
-      <div class="supplier-avatar">
-        <i class="fa-solid fa-print"></i>
-      </div>
-      <div class="supplier-info">
-        <span class="supplier-name" id="sidebarUserName">SGS Printing</span>
-        <span class="supplier-role" id="sidebarUserRole">Supplier</span>
-      </div>
-    </div>
-  </div>
-</aside>
-
-<div id="sidebarOverlay" class="sidebar-overlay d-lg-none"></div>
-
-<div class="main-wrapper" id="mainWrapper">
-  <header class="topnav" id="topnav">
-    <div class="topnav-left">
-      <button class="btn topnav-toggle" id="sidebarToggle" type="button">
-        <i class="fa-solid fa-bars"></i>
-      </button>
-      <div class="topnav-breadcrumb" id="topnavBreadcrumb">
-        <i class="fa-solid fa-gauge-high me-2 text-primary-brand"></i>
-        <span>Dashboard</span>
-      </div>
-    </div>
-
-    <div class="topnav-center d-none d-md-flex">
-      <div class="global-search-wrap search-container">
-        <i class="fa-solid fa-magnifying-glass search-icon"></i>
-        <input type="text" id="globalSearch" class="form-control global-search" placeholder="Search orders, products, documents…">
-        <div id="searchResults" class="search-dropdown search-results"></div>
-      </div>
-    </div>
-
-    <div class="topnav-right">
-      <span class="topnav-update d-none d-md-flex">
-        <i class="fa-regular fa-calendar me-1"></i>
-        <span id="lastUpdate">-</span>
-      </span>
-
-      <button class="btn topnav-icon-btn" id="refreshData" title="Refresh Data" type="button">
-        <i class="fa-solid fa-arrows-rotate"></i>
-      </button>
-
-      <button class="btn topnav-icon-btn" id="themeToggle" title="Toggle Dark Mode" type="button">
-        <i class="fa-solid fa-moon" id="themeIcon"></i>
-      </button>
-
-      <button class="btn topnav-icon-btn position-relative" id="notificationBtn" title="Notifications" type="button">
-        <i class="fa-solid fa-bell"></i>
-        <span class="notif-dot" id="notificationBadge" style="display:none"></span>
-      </button>
-
-      <div class="notif-dropdown" id="notifDropdown">
-        <div class="notif-header">
-          <strong>Notifications</strong>
+  <!-- Sidebar -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="logo-mark">
+          <img src="./logo-wave-vi.png" alt="WAVE VI" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\'font-size:13px;font-weight:900;color:#fff;letter-spacing:-0.5px\'>W6</span>'">
         </div>
-        <div class="notif-list" id="notificationsList">
-          <div class="notif-item"><div class="notif-content"><p class="text-muted mb-0">No notifications</p></div></div>
+        <div class="logo-text">
+          <span class="logo-main">WAVE VI</span>
+          <span class="logo-sub">Supplier Portal</span>
         </div>
       </div>
+      <button class="sidebar-toggle-btn d-lg-none" id="sidebarClose" type="button" aria-label="Close sidebar">
+        <i class="fa fa-times"></i>
+      </button>
+    </div>
 
-      <div class="topnav-profile" id="logoutBtn" title="Sign out">
-        <div class="profile-avatar" id="profileInitials">WV</div>
-        <div class="profile-info d-none d-md-block">
-          <span class="profile-name" id="profileName">WAVE VI</span>
-          <span class="profile-role" id="profileRole">Administrator</span>
+    <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
+      <div class="nav-section-label">Workspace</div>
+
+      <a href="#dashboard" class="nav-item active" data-page="dashboard" role="menuitem">
+        <i class="fa-solid fa-gauge-high nav-icon"></i>
+        <span class="nav-label">Dashboard</span>
+      </a>
+
+      <a href="#products" class="nav-item" data-page="products" role="menuitem">
+        <i class="fa-solid fa-box-open nav-icon"></i>
+        <span class="nav-label">Product Catalog</span>
+      </a>
+
+      <a href="#purchase-orders" class="nav-item" data-page="purchase-orders" role="menuitem">
+        <i class="fa-solid fa-file-invoice nav-icon"></i>
+        <span class="nav-label">Purchase Orders</span>
+      </a>
+
+      <a href="#deliveries" class="nav-item" data-page="deliveries" role="menuitem">
+        <i class="fa-solid fa-truck nav-icon"></i>
+        <span class="nav-label">Deliveries</span>
+      </a>
+
+      <a href="#payments" class="nav-item" data-page="payments" role="menuitem">
+        <i class="fa-solid fa-credit-card nav-icon"></i>
+        <span class="nav-label">Payments</span>
+      </a>
+
+      <div class="nav-section-label">Resources</div>
+
+      <a href="#documents" class="nav-item" data-page="documents" role="menuitem">
+        <i class="fa-solid fa-folder-open nav-icon"></i>
+        <span class="nav-label">Documents</span>
+      </a>
+
+      <div class="nav-section-label admin-only">System</div>
+
+      <a href="#settings" class="nav-item admin-only" data-page="settings" id="settingsNav" role="menuitem">
+        <i class="fa-solid fa-gear nav-icon"></i>
+        <span class="nav-label">Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="supplier-badge" id="logoutTrigger" title="Click to sign out">
+        <div class="supplier-avatar">
+          <i class="fa-solid fa-print"></i>
+        </div>
+        <div class="supplier-info">
+          <span class="supplier-name" id="sidebarUserName">SGS Printing</span>
+          <span class="supplier-role" id="sidebarUserRole">Supplier</span>
         </div>
       </div>
     </div>
-  </header>
+  </aside>
 
-  <main class="page-content main-content" id="mainContent"></main>
-</div>
+  <!-- Sidebar Overlay (mobile) -->
+  <div id="sidebarOverlay" class="sidebar-overlay d-lg-none"></div>
+
+  <!-- Main Content Area -->
+  <div class="main-wrapper" id="mainWrapper">
+
+    <!-- Top Navigation Bar -->
+    <header class="topnav" id="topnav" role="banner">
+      <div class="topnav-left">
+        <button class="topnav-toggle" id="sidebarToggle" type="button" aria-label="Toggle sidebar">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="topnav-breadcrumb" id="topnavBreadcrumb" aria-label="Current page">
+          <i class="fa-solid fa-gauge-high"></i>
+          <span>Dashboard</span>
+        </div>
+      </div>
+
+      <!-- Command Palette Search Trigger -->
+      <div class="topnav-center d-none d-md-flex">
+        <button
+          class="search-trigger"
+          id="searchTrigger"
+          onclick="document.dispatchEvent(new KeyboardEvent('keydown', {ctrlKey: true, key: 'k'}))"
+          type="button"
+          aria-label="Open command palette (Ctrl+K)"
+        >
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>Search or type a command…</span>
+          <span class="search-trigger-kbd">
+            <kbd>Ctrl</kbd>
+            <kbd>K</kbd>
+          </span>
+        </button>
+      </div>
+
+      <!-- Right Controls -->
+      <div class="topnav-right">
+        <span class="topnav-update d-none d-lg-flex">
+          <i class="fa-regular fa-clock"></i>
+          <span id="lastUpdate">–</span>
+        </span>
+
+        <button class="topnav-icon-btn" id="refreshData" title="Refresh data" type="button" aria-label="Refresh data">
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </button>
+
+        <button class="topnav-icon-btn" id="themeToggle" title="Toggle dark mode" type="button" aria-label="Toggle dark mode">
+          <i class="fa-solid fa-moon" id="themeIcon"></i>
+        </button>
+
+        <button class="topnav-icon-btn position-relative" id="notificationBtn" title="Notifications" type="button" aria-label="Notifications">
+          <i class="fa-solid fa-bell"></i>
+          <span class="notif-dot" id="notificationBadge" style="display:none" aria-hidden="true"></span>
+        </button>
+
+        <!-- Notification Dropdown -->
+        <div class="notif-dropdown" id="notifDropdown" role="dialog" aria-label="Notifications">
+          <div class="notif-header">
+            <strong>Notifications</strong>
+          </div>
+          <div class="notif-list" id="notificationsList">
+            <div class="notif-item">
+              <div class="notif-content">
+                <p class="text-muted mb-0" style="font-size:13px">No notifications</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile / Logout -->
+        <div class="topnav-profile" id="logoutBtn" title="Sign out" role="button" tabindex="0">
+          <div class="profile-avatar" id="profileInitials">WV</div>
+          <div class="profile-info d-none d-md-block">
+            <span class="profile-name" id="profileName">WAVE VI</span>
+            <span class="profile-role" id="profileRole">Administrator</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content (dynamic) -->
+    <main class="page-content" id="mainContent" aria-live="polite"></main>
+
+  </div><!-- /main-wrapper -->
 
 </div><!-- /appShell -->
 
-<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+<!-- ── Command Palette ───────────────────────────────────────── -->
+<div class="command-palette-overlay d-none" id="commandPaletteOverlay" role="dialog" aria-label="Command palette" aria-modal="true">
+  <div class="command-palette">
+    <div class="command-search-wrap">
+      <i class="fa-solid fa-magnifying-glass command-search-icon" aria-hidden="true"></i>
+      <input
+        type="text"
+        id="commandInput"
+        class="command-input"
+        placeholder="Search pages, products, orders…"
+        autocomplete="off"
+        spellcheck="false"
+        aria-label="Search command"
+      >
+    </div>
+    <div class="command-results" id="commandResults" role="listbox"></div>
+    <div class="command-footer">
+      <span><kbd>↑</kbd> <kbd>↓</kbd> navigate</span>
+      <span><kbd>Enter</kbd> select</span>
+      <span><kbd>Esc</kbd> close</span>
+    </div>
+  </div>
+</div>
 
+<!-- ── Toast Container ───────────────────────────────────────── -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" aria-live="assertive" aria-atomic="true"></div>
+
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </body>
