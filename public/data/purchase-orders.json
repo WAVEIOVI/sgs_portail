@@ -1,5 +1,30 @@
 [
   {
+    "id": "PO-002",
+    "po_number": "PO-SGS-002",
+    "date": "2026-07-16",
+    "status": "approved",
+    "supplier_reference": "",
+    "expected_delivery_date": "2026-07-20",
+    "actual_delivery_date": null,
+    "lines": [
+      {
+        "product_id": "PRD-001",
+        "product_name": "TICKET VALIDATION VER 1.6 IMP. NUM. 11X08 CM",
+        "quantity": 3000,
+        "unit_price_ht": 0.185,
+        "surface_mm2": 8800,
+        "line_total_ht": 555,
+        "received_qty": 0
+      }
+    ],
+    "total_ht": 555,
+    "total_ttc": 555,
+    "notes": "",
+    "created_at": "2026-07-16T20:25:09.387Z",
+    "updated_at": "2026-07-16T20:50:49.874Z"
+  },
+  {
     "id": "PO-001",
     "po_number": "PO-SGS-001",
     "date": "2026-06-10",
@@ -23,5 +48,156 @@
     "notes": "",
     "created_at": "2026-07-14T00:06:37.342Z",
     "updated_at": "2026-07-14T03:25:48.216Z"
+  },
+  {
+    "id": "PO-003",
+    "po_number": "PO-SGS-003",
+    "date": "2026-07-16",
+    "status": "approved",
+    "supplier_reference": "",
+    "expected_delivery_date": "2026-07-20",
+    "actual_delivery_date": null,
+    "lines": [
+      {
+        "product_id": "PRD-002",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR CO 02 KG UV 15x20 CM",
+        "quantity": 50,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 48,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-003",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR CO 05 KG UV 15x20 CM",
+        "quantity": 150,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 144,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-004",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR EAU + ADDITIF 06L UV 15x20 CM",
+        "quantity": 30,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 28.799999999999997,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-005",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR EAU + ADDITIF 09L UV 15x20 CM",
+        "quantity": 30,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 28.799999999999997,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-006",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR MOUSSE 06L UV 15x20 CM",
+        "quantity": 30,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 28.799999999999997,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-007",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR MOUSSE 09L UV 15x20 CM",
+        "quantity": 30,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 28.799999999999997,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-008",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR POUDRE PA 04KG UV 15x20 CM",
+        "quantity": 20,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 19.2,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-009",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR POUDRE PA 06KG UV 15x20 CM",
+        "quantity": 150,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 144,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-010",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR POUDRE PA 09KG UV 15x20 CM",
+        "quantity": 150,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 144,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-011",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR POUDRE PP 01KG UV 10x15 CM",
+        "quantity": 10,
+        "unit_price_ht": 0.48,
+        "surface_mm2": 15000,
+        "line_total_ht": 4.8,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-012",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR POUDRE PP 02KG UV 10x15 CM",
+        "quantity": 10,
+        "unit_price_ht": 0.48,
+        "surface_mm2": 15000,
+        "line_total_ht": 4.8,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-013",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR POUDRE PP 04KG UV 15x20 CM",
+        "quantity": 20,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 19.2,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-014",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR POUDRE PP 06KG UV 15x20 CM",
+        "quantity": 150,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 144,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-015",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR POUDRE PP 09KG UV 15x20 CM",
+        "quantity": 150,
+        "unit_price_ht": 0.96,
+        "surface_mm2": 30000,
+        "line_total_ht": 144,
+        "received_qty": 0
+      },
+      {
+        "product_id": "PRD-016",
+        "product_name": "TICKET MODE D'EMPLOI EXTINCTEUR POUDRE PP 50KG UV 20x30 CM",
+        "quantity": 30,
+        "unit_price_ht": 1.92,
+        "surface_mm2": 60000,
+        "line_total_ht": 57.599999999999994,
+        "received_qty": 0
+      }
+    ],
+    "total_ht": 988.8000000000001,
+    "total_ttc": 988.8000000000001,
+    "notes": "",
+    "created_at": "2026-07-16T21:09:07.766Z",
+    "updated_at": "2026-07-16T21:09:07.766Z"
   }
 ]

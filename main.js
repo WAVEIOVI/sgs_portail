@@ -1828,7 +1828,7 @@ function renderPODetails(poId) {
     </div>
 
     <h6 class="fw-bold mb-3 mt-4 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Order Lines (${po.lines?.length || 0})</h6>
-    <div class="table-responsive rounded border mb-4">
+    <div class="table-responsive rounded border mb-4 lines-scroll-container">
       <table class="data-table mb-0 align-middle">
         <thead style="background: var(--bg-page); border-bottom: 1px solid var(--border-color);">
           <tr>
@@ -1966,7 +1966,7 @@ function showPOModal(poId = null, options = {}) {
               <!-- Order Lines -->
               <div class="mb-4">
                 <h6 class="mb-3">Order Lines</h6>
-                <div class="table-responsive">
+                <div class="table-responsive lines-scroll-container">
                   <table class="data-table">
                     <thead>
                       <tr>
@@ -2074,6 +2074,14 @@ function showPOModal(poId = null, options = {}) {
                   <div class="col-md-6">
                     <label class="form-label">Expected Delivery Date</label>
                     <input type="date" class="form-control" id="poDeliveryDate" value="${po?.expected_delivery_date || ''}">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="poStatusEdit">
+                      ${['draft', 'pending', 'approved', 'in-production', 'completed', 'completed-partial', 'cancelled'].map(s =>
+                        `<option value="${s}" ${po && po.status === s ? 'selected' : (!po && s==='draft' ? 'selected' : '')}>${formatStatus(s)}</option>`
+                      ).join('')}
+                    </select>
                   </div>
                   <div class="col-12">
                     <label class="form-label">Notes</label>
@@ -2356,8 +2364,11 @@ async function savePO() {
   const existingPO = poId ? App.data.purchaseOrders.find(p => p.id === poId) : null;
   const totalHT = lines.reduce((sum, l) => sum + l.line_total_ht, 0);
 
+  const newStatus = document.getElementById('poStatusEdit')?.value || 'draft';
+
   const po = existingPO ? {
     ...existingPO,
+    status: newStatus,
     date: document.getElementById('poDate').value,
     supplier_reference: document.getElementById('poRef').value,
     expected_delivery_date: document.getElementById('poDeliveryDate').value,
@@ -2377,7 +2388,7 @@ async function savePO() {
     id: getNextId('PO', 'purchaseOrder'),
     po_number: getNextPONumber(),
     date: document.getElementById('poDate').value,
-    status: 'draft',
+    status: newStatus,
     supplier_reference: document.getElementById('poRef').value,
     expected_delivery_date: document.getElementById('poDeliveryDate').value,
     actual_delivery_date: null,
@@ -2723,7 +2734,7 @@ function renderDeliveryDetails(deliveryId) {
     ` : ''}
 
     <h6 class="fw-bold mb-3 mt-4 text-uppercase text-muted" style="font-size:0.75rem; letter-spacing:0.5px;">Delivery Lines (${delivery.lines?.length || 0})</h6>
-    <div class="table-responsive rounded border mb-4">
+    <div class="table-responsive rounded border mb-4 lines-scroll-container">
       <table class="table table-borderless table-hover mb-0 align-middle">
         <thead style="background: var(--bg-page); border-bottom: 1px solid var(--border-color);">
           <tr>
@@ -2824,7 +2835,7 @@ function showDeliveryModal(deliveryId) {
 
             <h6 class="section-title">Delivery Lines</h6>
             <div class="table-card mb-3">
-              <div class="table-responsive">
+              <div class="table-responsive lines-scroll-container">
                 <table class="data-table mb-0">
                   <thead>
                     <tr>
